@@ -10,7 +10,7 @@ from serial.tools import list_ports
 
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Current = "03 03 00 61 00 06"
-
+Write_Addr_Current = "03 06 04 48 00 02 00 01"
 
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
@@ -29,7 +29,14 @@ def format_hex(data: bytes) -> str:
         return ""
     return " ".join(f"{byte:02X}" for byte in data)
 
-
+def parse_version_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 10:
+        return "N/A", "N/A"
+    version_byte0 = str(data[9])
+    version_byte1 = str(data[8])
+    version_byte2 = str(data[7])
+    version_byte3 = str(data[6])
+    return version_byte0, version_byte1, version_byte2, version_byte3
 def parse_current_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 12:
         return "N/A", "N/A"
@@ -50,11 +57,13 @@ class ModbusGuiApp:
         self.serial_port: Optional[serial.Serial] = None
         self.port_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Disconnected")
-        self.response_var = tk.StringVar(value="")
-        self.current_var = tk.StringVar(value="0")
-        self.current_read_raw_var = tk.StringVar(value="")
-        self.current_read_float_var = tk.StringVar(value="N/A")
-        self.current_read_cmd_var = tk.StringVar(value="N/A")
+        self.response_fw_version_read_raw_var = tk.StringVar(value="")
+        self.response_fw_version_read_all_var = tk.StringVar(value="")
+        self.input_from_gui_current_w_var = tk.StringVar(value="0")
+        self.response_current_w_raw_var = tk.StringVar(value="")
+        self.response_current_r_raw_var = tk.StringVar(value="")
+        self.response_current_r_float_var = tk.StringVar(value="N/A")
+        self.response_current_r_cmd_var = tk.StringVar(value="N/A")
 
         self._build_ui()
         self.refresh_ports()
@@ -77,60 +86,55 @@ class ModbusGuiApp:
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
             row=1, column=0, columnspan=5, sticky="w", pady=(10, 0)
         )
-
-        action = ttk.LabelFrame(root, text="Action", padding=12)
-        action.pack(fill="x", pady=(12, 0))
-
-        ttk.Label(action, text="Response").grid(row=0, column=0, sticky="w")
-        self.response_entry = ttk.Entry(action, textvariable=self.response_var, width=62, state="readonly")
+    # get version
+        f_get_version = ttk.LabelFrame(root, text="FW_version", padding=12)
+        f_get_version.pack(fill="x", pady=(12, 0))
+        ttk.Label(f_get_version, text="Response").grid(row=0, column=0, sticky="w")
+        self.response_entry = ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_raw_var, width=62, state="readonly")
         self.response_entry.grid(row=0, column=1, padx=(8, 12), sticky="we")
-
-        ttk.Button(action, text="A", command=self.send_a_command, width=8).grid(row=0, column=2, sticky="e")
-
-        action.columnconfigure(1, weight=1)
-
-        current = ttk.LabelFrame(root, text="Current Setting", padding=12)
-        current.pack(fill="x", pady=(12, 0))
-
-        ttk.Label(current, text="Current (uint8)").grid(row=0, column=0, sticky="w")
-        self.current_spin = ttk.Spinbox(current, from_=0, to=255, textvariable=self.current_var, width=10)
-        self.current_spin.grid(row=0, column=1, padx=(8, 12), sticky="w")
-
-        ttk.Label(current, text="Response").grid(row=0, column=2, sticky="w")
-        self.current_response_entry = ttk.Entry(current, textvariable=self.response_var, width=40, state="readonly")
-        self.current_response_entry.grid(row=0, column=3, padx=(8, 12), sticky="we")
-
-        ttk.Button(current, text="W_current", command=self.send_w_current_command, width=12).grid(
-            row=0, column=4, sticky="e"
-        )
-
-        current.columnconfigure(3, weight=1)
-
-        current_read = ttk.LabelFrame(root, text="Current Read", padding=12)
-        current_read.pack(fill="x", pady=(12, 0))
-
-        ttk.Button(current_read, text="R_current", command=self.send_r_current_command, width=12).grid(
+        ttk.Button(f_get_version, text="R_Version", command=self.send_r_version_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-
-        ttk.Label(current_read, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        ttk.Label(f_get_version, text="vser.").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_all_var, width=18, state="readonly").grid(
+            row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        f_get_version.columnconfigure(1, weight=1)
+    # set current
+        f_current_w = ttk.LabelFrame(root, text="Current Write", padding=12)
+        f_current_w.pack(fill="x", pady=(12, 0))
+        ttk.Label(f_current_w, text="Current (uint8)").grid(row=0, column=0, sticky="w")
+        self.current_spin = ttk.Spinbox(f_current_w, from_=0, to=255, textvariable=self.input_from_gui_current_w_var, width=10)
+        self.current_spin.grid(row=0, column=1, padx=(8, 12), sticky="w")
+        ttk.Label(f_current_w, text="Response").grid(row=0, column=2, sticky="w")
+        self.current_response_entry = ttk.Entry(f_current_w, textvariable=self.response_current_w_raw_var, width=40, state="readonly")
+        self.current_response_entry.grid(row=0, column=3, padx=(8, 12), sticky="we")
+        ttk.Button(f_current_w, text="W_current", command=self.send_w_current_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        f_current_w.columnconfigure(3, weight=1)
+    # get current
+        f_current_r = ttk.LabelFrame(root, text="Current Read", padding=12)
+        f_current_r.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_current_r, text="R_current", command=self.send_r_current_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_current_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
         self.current_read_raw_entry = ttk.Entry(
-            current_read, textvariable=self.current_read_raw_var, width=42, state="readonly"
+            f_current_r, textvariable=self.response_current_r_raw_var, width=42, state="readonly"
         )
         self.current_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
 
-        ttk.Label(current_read, text="TTPLPFC_ac_cur_ref_inst_pu").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(current_read, textvariable=self.current_read_float_var, width=18, state="readonly").grid(
+        ttk.Label(f_current_r, text="TTPLPFC_ac_cur_ref_inst_pu").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_r, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
             row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-
-        ttk.Label(current_read, text="current_cmd_from_modbus").grid(row=1, column=2, sticky="w", pady=(8, 0))
-        ttk.Entry(current_read, textvariable=self.current_read_cmd_var, width=18, state="readonly").grid(
+        ttk.Label(f_current_r, text="current_cmd_from_modbus").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_r, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
             row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-
-        current_read.columnconfigure(2, weight=1)
-
+        f_current_r.columnconfigure(2, weight=1)
+    # history
         hint = ttk.Label(
             root,
             text="所有發送 以及 回應的訊息",
@@ -183,7 +187,7 @@ class ModbusGuiApp:
         else:
             self.serial_port = None
 
-    def send_a_command(self) -> None:
+    def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
@@ -192,7 +196,7 @@ class ModbusGuiApp:
         frame = request + build_modbus_crc(request)
         threading.Thread(
             target=self._send_frame_worker,
-            args=(frame, "Command sent", self._handle_default_response),
+            args=(frame, "Command sent", self.handle_parse_version_read_response),
             daemon=True,
         ).start()
 
@@ -202,7 +206,7 @@ class ModbusGuiApp:
             return
 
         try:
-            current_value = int(self.current_var.get().strip())
+            current_value = int(self.input_from_gui_current_w_var.get().strip())
         except ValueError:
             messagebox.showwarning("Invalid current", "Current must be an integer between 0 and 255.")
             return
@@ -211,13 +215,13 @@ class ModbusGuiApp:
             messagebox.showwarning("Invalid current", "Current must be an integer between 0 and 255.")
             return
 
-        request = bytearray.fromhex("03 06 04 48 00 02 00 01")
+        request = bytearray.fromhex(Write_Addr_Current)
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = current_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
         threading.Thread(
             target=self._send_frame_worker,
-            args=(frame, "W_current sent", self._handle_default_response),
+            args=(frame, "W_current sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
 
@@ -253,18 +257,25 @@ class ModbusGuiApp:
             self.root.after(0, lambda: self.status_var.set(status_text))
         except serial.SerialException as exc:
             self.root.after(0, lambda: messagebox.showerror("Serial error", str(exc)))
-            self.root.after(0, lambda: self.status_var.set("Serial error"))
-
-    def _handle_default_response(self, response: bytes) -> None:
+            self.root.after(0, lambda: self.status_var.set("Serial error"))        
+        
+    def handle_parse_version_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
-        self.root.after(0, lambda: self.response_var.set(response_text))
+        version_byte0, version_byte1, version_byte2, version_byte3 = parse_version_read_response(response)
+        self.root.after(0, lambda: self.response_fw_version_read_raw_var.set(response_text))
+        version_concat = version_byte3 + "." + version_byte2 + "." + version_byte1 + "." + version_byte0
+        self.root.after(0, lambda: self.response_fw_version_read_all_var.set(version_concat))
+    
+    def _handle_parse_current_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        self.root.after(0, lambda: self.response_current_w_raw_var.set(response_text))
 
     def _handle_current_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         float_value, current_cmd = parse_current_read_response(response)
-        self.root.after(0, lambda: self.current_read_raw_var.set(response_text))
-        self.root.after(0, lambda: self.current_read_float_var.set(float_value))
-        self.root.after(0, lambda: self.current_read_cmd_var.set(current_cmd))
+        self.root.after(0, lambda: self.response_current_r_raw_var.set(response_text))
+        self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
+        self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
