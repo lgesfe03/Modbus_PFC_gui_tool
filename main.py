@@ -14,6 +14,7 @@ Read_Addr_PWM_duty = "04 03 00 25 00 01"
 Read_Addr_ADC1 = "04 03 00 0C 00 0A"
 Read_Addr_GPIO = "04 03 00 15 00 01"
 Write_Addr_Current = "04 06 04 48 00 02 00 01"
+Write_Addr_GPIO = "04 06 03 FC 00 01 00"
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
     for byte in data:
@@ -97,7 +98,7 @@ class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Modbus PFC GUI Tool")
-        self.root.geometry("720x260")
+        self.root.geometry("720x370")
 
         self.serial_port: Optional[serial.Serial] = None
         self.port_var = tk.StringVar()
@@ -126,6 +127,10 @@ class ModbusGuiApp:
         self.response_gpio_DO_RELAY_r_var = tk.StringVar(value="")
         self.response_gpio_DO_AC_LOSS_r_var = tk.StringVar(value="")
         self.response_gpio_DO_NotifyLLC_r_var = tk.StringVar(value="")
+        self.response_gpio_w_raw_var = tk.StringVar(value="")
+        self.gpio_do_relay_w_var = tk.IntVar(value=0)
+        self.gpio_do_ac_loss_w_var = tk.IntVar(value=0)
+        self.gpio_do_notifyllc_w_var = tk.IntVar(value=0)
 
 
         self._build_ui()
@@ -295,10 +300,45 @@ class ModbusGuiApp:
         )
         f_gpio_r.columnconfigure(2, weight=1)
 
+    # set GPIO
+        f_gpio_w = ttk.LabelFrame(root, text="GPIO Write", padding=12)
+        f_gpio_w.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_gpio_w, text="W_GPIO", command=self.send_w_gpio_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_gpio_w, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.gpio_write_raw_entry = ttk.Entry(
+            f_gpio_w, textvariable=self.response_gpio_w_raw_var, width=42, state="readonly"
+        )
+        self.gpio_write_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
+
+        ttk.Label(f_gpio_w, text="DO_RELAY").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(
+            f_gpio_w,
+            variable=self.gpio_do_relay_w_var,
+            onvalue=1,
+            offvalue=0,
+        ).grid(row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(f_gpio_w, text="DO_AC_LOSS").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(
+            f_gpio_w,
+            variable=self.gpio_do_ac_loss_w_var,
+            onvalue=1,
+            offvalue=0,
+        ).grid(row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Label(f_gpio_w, text="DO_NotifyLLC").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(
+            f_gpio_w,
+            variable=self.gpio_do_notifyllc_w_var,
+            onvalue=1,
+            offvalue=0,
+        ).grid(row=1, column=5, sticky="w", pady=(8, 0))
+        f_gpio_w.columnconfigure(2, weight=1)
+
     # history
         hint = ttk.Label(
             root,
-            text="所有發送 以及 回應的訊息",
+            text="Historical messages",
             foreground="#020101",
         )
         hint.pack(anchor="w", pady=(12, 0))
@@ -434,6 +474,26 @@ class ModbusGuiApp:
             args=(frame, "R_GPIO sent", self._handle_gpio_read_response),
             daemon=True,
         ).start()
+
+    def send_w_gpio_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        gpio_value = (
+            (self.gpio_do_relay_w_var.get() & 0x01)
+            | ((self.gpio_do_ac_loss_w_var.get() & 0x01) << 1)
+            | ((self.gpio_do_notifyllc_w_var.get() & 0x01) << 2)
+        )
+
+        request = bytearray.fromhex(Write_Addr_GPIO)
+        request[6] = gpio_value
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_GPIO sent", self._handle_gpio_write_response),
+            daemon=True,
+        ).start()
     
     def _send_frame_worker(
         self,
@@ -502,6 +562,10 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_gpio_DO_RELAY_r_var.set(DO_RELAY))
         self.root.after(0, lambda: self.response_gpio_DO_AC_LOSS_r_var.set(DO_AC_LOSS))
         self.root.after(0, lambda: self.response_gpio_DO_NotifyLLC_r_var.set(DO_NotifyLLC))
+
+    def _handle_gpio_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        self.root.after(0, lambda: self.response_gpio_w_raw_var.set(response_text))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
