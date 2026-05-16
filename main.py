@@ -8,10 +8,11 @@ from typing import Callable, List, Optional
 import serial
 from serial.tools import list_ports
 
-Read_Addr_FW_version = "03 03 00 01 00 04"
-Read_Addr_Current = "03 03 00 61 00 06"
-Write_Addr_Current = "03 06 04 48 00 02 00 01"
-
+Read_Addr_FW_version = "04 03 00 01 00 04"
+Read_Addr_Current = "04 03 00 61 00 06"
+Read_Addr_PWM_duty = "04 03 00 25 00 01"
+Read_Addr_ADC1 = "04 03 00 0C 00 0A"
+Write_Addr_Current = "04 06 04 48 00 02 00 01"
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
     for byte in data:
@@ -46,7 +47,41 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
     current_ref = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
     current_cmd = str(data[11])
     return current_ref, current_cmd
+def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+2:
+        return "N/A", "N/A"
 
+    pwm_duty_FAH = str(data[7])
+    return pwm_duty_FAH
+    pwm_duty_FAL = str(data[8])
+    pwm_duty_FBH = str(data[9])
+    pwm_duty_FBL = str(data[10])
+    return pwm_duty_FAH, pwm_duty_FAL, pwm_duty_FBH, pwm_duty_FBL
+def convert_vac_voltage(u16_adc):
+    return str(u16_adc*0.2585 - 530.2)
+def convert_il_amp(u16_adc):
+    return str(u16_adc*0.0222- 45.537)
+def convert_vbus_voltage(u16_adc):
+    return str(u16_adc*0.12924)
+def convert_1v65_voltage(u16_adc):
+    return str(u16_adc/4095*3.3)
+def parse_adc1_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+10:
+        return "N/A", "N/A"
+    u16_adc_vac = data[6]<<8 | data[7]
+    str_vac_voltage = convert_vac_voltage(u16_adc_vac)
+    
+    u16_adc_il1 = data[8]<<8 | data[9]
+    str_il1_amp = convert_il_amp(u16_adc_il1)
+    u16_adc_il2 = data[10]<<8 | data[11]
+    str_il2_amp = convert_il_amp(u16_adc_il2)
+
+    u16_adc_vbus = data[12]<<8 | data[13]
+    str_vbus_voltage = convert_vbus_voltage(u16_adc_vbus)
+
+    u16_adc_1v65 = data[14]<<8 | data[15]
+    str_1v65_voltage = convert_1v65_voltage(u16_adc_1v65)
+    return str_1v65_voltage, str_vbus_voltage, str_il2_amp, str_il1_amp, str_vac_voltage
 
 class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
@@ -64,6 +99,17 @@ class ModbusGuiApp:
         self.response_current_r_raw_var = tk.StringVar(value="")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
+        self.response_pwm_duty_r_raw_var = tk.StringVar(value="")
+        self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
+        self.response_pwm_FAL_duty_r_var = tk.StringVar(value="")
+        self.response_pwm_FBH_duty_r_var = tk.StringVar(value="")
+        self.response_pwm_FBL_duty_r_var = tk.StringVar(value="")
+        self.response_adc1_r_raw_var = tk.StringVar(value="")
+        self.response_adc1_v165_r_var = tk.StringVar(value="")
+        self.response_adc1_vbus_r_var = tk.StringVar(value="")
+        self.response_adc1_il1_r_var = tk.StringVar(value="")
+        self.response_adc1_il2_r_var = tk.StringVar(value="")
+        self.response_adc1_vac_r_var = tk.StringVar(value="")
 
         self._build_ui()
         self.refresh_ports()
@@ -134,6 +180,69 @@ class ModbusGuiApp:
             row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_current_r.columnconfigure(2, weight=1)
+    # get PWM duty
+        f_r_pwm_duty = ttk.LabelFrame(root, text="PWM Read", padding=12)
+        f_r_pwm_duty.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_r_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_r_pwm_duty, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.pwm_duty_r_raw_entry = ttk.Entry(
+            f_r_pwm_duty, textvariable=self.response_pwm_duty_r_raw_var, width=42, state="readonly"
+        )
+        self.pwm_duty_r_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
+
+        ttk.Label(f_r_pwm_duty, text="PWM-FAH").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
+            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_r_pwm_duty, text="PWM-FAL").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
+            row=1, column=3, padx=(100, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_r_pwm_duty, text="PWM-FBH").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
+            row=1, column=5, padx=(58, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_r_pwm_duty, text="PWM-FBL").grid(row=1, column=6, sticky="w", pady=(8, 0))
+        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
+            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        f_r_pwm_duty.columnconfigure(2, weight=1)
+    # get ADC1s
+        f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
+        f_adc_r.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_adc_r, text="R_ADC1", command=self.send_r_adc1_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_adc_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.adc_read_raw_entry = ttk.Entry(
+            f_adc_r, textvariable=self.response_adc1_r_raw_var, width=42, state="readonly"
+        )
+        self.adc_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
+
+        
+        ttk.Label(f_adc_r, text="Vac").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vac_r_var, width=18, state="readonly").grid(
+            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_adc_r, text="iL1").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il1_r_var, width=18, state="readonly").grid(
+            row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_adc_r, text="iL2").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il2_r_var, width=18, state="readonly").grid(
+            row=1, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_adc_r, text="Vbus").grid(row=1, column=6, sticky="w", pady=(8, 0))
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vbus_r_var, width=18, state="readonly").grid(
+            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_adc_r, text="1.65V").grid(row=1, column=8, sticky="w", pady=(8, 0))
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_v165_r_var, width=18, state="readonly").grid(
+            row=1, column=9, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        f_adc_r.columnconfigure(2, weight=1)
     # history
         hint = ttk.Label(
             root,
@@ -237,7 +346,30 @@ class ModbusGuiApp:
             args=(frame, "R_current sent", self._handle_current_read_response),
             daemon=True,
         ).start()
+    def send_r_pwm_duty_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
 
+        request = bytes.fromhex(Read_Addr_PWM_duty)
+        frame = request + build_modbus_crc(request)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_PWM duty sent", self._handle_pwm_duty_read_response),
+            daemon=True,
+        ).start()
+    def send_r_adc1_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytes.fromhex(Read_Addr_ADC1)
+        frame = request + build_modbus_crc(request)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_ADC1 sent", self._handle_adc1_read_response),
+            daemon=True,
+        ).start()
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -276,6 +408,25 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_current_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
         self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
+
+    def _handle_pwm_duty_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        PWM_FAH_duty = parse_pwm_duty_read_response(response)
+        self.root.after(0, lambda: self.response_pwm_duty_r_raw_var.set(response_text))
+        self.root.after(0, lambda: self.response_pwm_FAH_duty_r_var.set(PWM_FAH_duty))
+        # self.root.after(0, lambda: self.response_pwm_FAL_duty_r_var.set(PWM_FAL_duty))
+        # self.root.after(0, lambda: self.response_pwm_FBH_duty_r_var.set(PWM_FBH_duty))
+        # self.root.after(0, lambda: self.response_pwm_FBL_duty_r_var.set(PWM_FBL_duty))
+
+    def _handle_adc1_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        adc1_v165, adc1_vbus, adc1_il2, adc1_il1, adc1_vac = parse_adc1_read_response(response)
+        self.root.after(0, lambda: self.response_adc1_r_raw_var.set(response_text))
+        self.root.after(0, lambda: self.response_adc1_v165_r_var.set(adc1_v165))
+        self.root.after(0, lambda: self.response_adc1_vbus_r_var.set(adc1_vbus))
+        self.root.after(0, lambda: self.response_adc1_il1_r_var.set(adc1_il1))
+        self.root.after(0, lambda: self.response_adc1_il2_r_var.set(adc1_il2))
+        self.root.after(0, lambda: self.response_adc1_vac_r_var.set(adc1_vac))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
