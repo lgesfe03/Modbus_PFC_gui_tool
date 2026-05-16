@@ -15,6 +15,11 @@ Read_Addr_ADC1 = "04 03 00 0C 00 0A"
 Read_Addr_GPIO = "04 03 00 15 00 01"
 Write_Addr_Current = "04 06 04 48 00 02 00 01"
 Write_Addr_GPIO = "04 06 03 FC 00 01 00"
+
+def debug_print_tx(frame: bytes) -> None:
+    print(f"Tx frame: {format_hex(frame)}")
+def debug_print_rx(frame: bytes) -> None:
+    print(f"Rx frame: {format_hex(frame)}")
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
     for byte in data:
@@ -311,14 +316,14 @@ class ModbusGuiApp:
             f_gpio_w, textvariable=self.response_gpio_w_raw_var, width=42, state="readonly"
         )
         self.gpio_write_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
-
-        ttk.Label(f_gpio_w, text="DO_RELAY").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(f_gpio_w, text="DO_NotifyLLC").grid(row=1, column=0, sticky="w", pady=(8, 0))
         ttk.Checkbutton(
             f_gpio_w,
-            variable=self.gpio_do_relay_w_var,
+            variable=self.gpio_do_notifyllc_w_var,
             onvalue=1,
             offvalue=0,
         ).grid(row=1, column=1, sticky="w", pady=(8, 0))
+        
         ttk.Label(f_gpio_w, text="DO_AC_LOSS").grid(row=1, column=2, sticky="w", pady=(8, 0))
         ttk.Checkbutton(
             f_gpio_w,
@@ -326,10 +331,11 @@ class ModbusGuiApp:
             onvalue=1,
             offvalue=0,
         ).grid(row=1, column=3, sticky="w", pady=(8, 0))
-        ttk.Label(f_gpio_w, text="DO_NotifyLLC").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_gpio_w, text="DO_RELAY").grid(row=1, column=4, sticky="w", pady=(8, 0))
         ttk.Checkbutton(
             f_gpio_w,
-            variable=self.gpio_do_notifyllc_w_var,
+            variable=self.gpio_do_relay_w_var,
             onvalue=1,
             offvalue=0,
         ).grid(row=1, column=5, sticky="w", pady=(8, 0))
@@ -395,6 +401,7 @@ class ModbusGuiApp:
 
         request = bytes.fromhex(Read_Addr_FW_version)
         frame = request + build_modbus_crc(request)
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "Command sent", self.handle_parse_version_read_response),
@@ -420,6 +427,7 @@ class ModbusGuiApp:
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = current_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "W_current sent", self._handle_parse_current_write_response),
@@ -433,6 +441,7 @@ class ModbusGuiApp:
 
         request = bytes.fromhex(Read_Addr_Current)
         frame = request + build_modbus_crc(request)
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "R_current sent", self._handle_current_read_response),
@@ -445,6 +454,7 @@ class ModbusGuiApp:
 
         request = bytes.fromhex(Read_Addr_PWM_duty)
         frame = request + build_modbus_crc(request)
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "R_PWM duty sent", self._handle_pwm_duty_read_response),
@@ -457,6 +467,7 @@ class ModbusGuiApp:
 
         request = bytes.fromhex(Read_Addr_ADC1)
         frame = request + build_modbus_crc(request)
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "R_ADC1 sent", self._handle_adc1_read_response),
@@ -469,6 +480,7 @@ class ModbusGuiApp:
 
         request = bytes.fromhex(Read_Addr_GPIO)
         frame = request + build_modbus_crc(request)
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "R_GPIO sent", self._handle_gpio_read_response),
@@ -489,6 +501,7 @@ class ModbusGuiApp:
         request = bytearray.fromhex(Write_Addr_GPIO)
         request[6] = gpio_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "W_GPIO sent", self._handle_gpio_write_response),
@@ -518,6 +531,7 @@ class ModbusGuiApp:
         
     def handle_parse_version_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         version_byte0, version_byte1, version_byte2, version_byte3 = parse_version_read_response(response)
         self.root.after(0, lambda: self.response_fw_version_read_raw_var.set(response_text))
         version_concat = version_byte3 + "." + version_byte2 + "." + version_byte1 + "." + version_byte0
@@ -525,10 +539,12 @@ class ModbusGuiApp:
     
     def _handle_parse_current_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         self.root.after(0, lambda: self.response_current_w_raw_var.set(response_text))
 
     def _handle_current_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         float_value, current_cmd = parse_current_read_response(response)
         self.root.after(0, lambda: self.response_current_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
@@ -536,6 +552,7 @@ class ModbusGuiApp:
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         PWM_FAH_duty = parse_pwm_duty_read_response(response)
         self.root.after(0, lambda: self.response_pwm_duty_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_pwm_FAH_duty_r_var.set(PWM_FAH_duty))
@@ -545,6 +562,7 @@ class ModbusGuiApp:
 
     def _handle_adc1_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         adc1_v165, adc1_vbus, adc1_il2, adc1_il1, adc1_vac = parse_adc1_read_response(response)
         self.root.after(0, lambda: self.response_adc1_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_adc1_v165_r_var.set(adc1_v165))
@@ -556,6 +574,7 @@ class ModbusGuiApp:
     def _handle_gpio_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Fan1_RPM, DI_LLC_PwrGood, DO_RELAY, DO_AC_LOSS, DO_NotifyLLC = parse_gpio_read_response(response)
+        debug_print_rx(response)
         self.root.after(0, lambda: self.response_gpio_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_gpio_Fan1_RPM_r_var.set(Fan1_RPM))
         self.root.after(0, lambda: self.response_gpio_DI_LLC_r_var.set(DI_LLC_PwrGood))
@@ -565,6 +584,7 @@ class ModbusGuiApp:
 
     def _handle_gpio_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
         self.root.after(0, lambda: self.response_gpio_w_raw_var.set(response_text))
 
     def _read_response(self) -> bytes:
