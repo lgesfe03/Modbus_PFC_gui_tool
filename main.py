@@ -12,6 +12,7 @@ Read_Addr_FW_version = "04 03 00 01 00 04"
 Read_Addr_Current = "04 03 00 61 00 06"
 Read_Addr_PWM_duty = "04 03 00 25 00 01"
 Read_Addr_ADC1 = "04 03 00 0C 00 0A"
+Read_Addr_GPIO = "04 03 00 15 00 01"
 Write_Addr_Current = "04 06 04 48 00 02 00 01"
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
@@ -82,7 +83,16 @@ def parse_adc1_read_response(data: bytes) -> tuple[str, str]:
     u16_adc_1v65 = data[14]<<8 | data[15]
     str_1v65_voltage = convert_1v65_voltage(u16_adc_1v65)
     return str_1v65_voltage, str_vbus_voltage, str_il2_amp, str_il1_amp, str_vac_voltage
-
+def parse_gpio_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+1:
+        return "N/A", "N/A"
+    
+    bit_Fan1_RPM = (data[6] >> 0) & 0x01
+    bit_DI_LLC_PwrGood = (data[6] >> 1) & 0x01
+    bit_DO_RELAY = (data[6] >> 2) & 0x01
+    bit_DO_AC_LOSS = (data[6] >> 3) & 0x01
+    bit_DO_NotifyLLC = (data[6] >> 4) & 0x01
+    return str(bit_Fan1_RPM), str(bit_DI_LLC_PwrGood), str(bit_DO_RELAY), str(bit_DO_AC_LOSS), str(bit_DO_NotifyLLC)
 class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -110,6 +120,13 @@ class ModbusGuiApp:
         self.response_adc1_il1_r_var = tk.StringVar(value="")
         self.response_adc1_il2_r_var = tk.StringVar(value="")
         self.response_adc1_vac_r_var = tk.StringVar(value="")
+        self.response_gpio_r_raw_var = tk.StringVar(value="")
+        self.response_gpio_Fan1_RPM_r_var = tk.StringVar(value="")
+        self.response_gpio_DI_LLC_r_var = tk.StringVar(value="")
+        self.response_gpio_DO_RELAY_r_var = tk.StringVar(value="")
+        self.response_gpio_DO_AC_LOSS_r_var = tk.StringVar(value="")
+        self.response_gpio_DO_NotifyLLC_r_var = tk.StringVar(value="")
+
 
         self._build_ui()
         self.refresh_ports()
@@ -243,6 +260,41 @@ class ModbusGuiApp:
             row=1, column=9, padx=(12, 8), pady=(8, 0), sticky="w"
         )
         f_adc_r.columnconfigure(2, weight=1)
+    # get GPIO
+        f_gpio_r = ttk.LabelFrame(root, text="GPIO Read", padding=12)
+        f_gpio_r.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_gpio_r, text="R_GPIO", command=self.send_r_gpio_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_gpio_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.gpio_read_raw_entry = ttk.Entry(
+            f_gpio_r, textvariable=self.response_gpio_r_raw_var, width=42, state="readonly"
+        )
+        self.gpio_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
+
+        
+        ttk.Label(f_gpio_r, text="DO_NotifyLLC").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_NotifyLLC_r_var, width=18, state="readonly").grid(
+            row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio_r, text="DO_AC_LOSS").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_AC_LOSS_r_var, width=18, state="readonly").grid(
+            row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio_r, text="DO_RELAY").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_RELAY_r_var, width=18, state="readonly").grid(
+            row=1, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio_r, text="DI_LLC").grid(row=1, column=6, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DI_LLC_r_var, width=18, state="readonly").grid(
+            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio_r, text="Fan1_RPM").grid(row=1, column=8, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_Fan1_RPM_r_var, width=18, state="readonly").grid(
+            row=1, column=9, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        f_gpio_r.columnconfigure(2, weight=1)
+
     # history
         hint = ttk.Label(
             root,
@@ -370,6 +422,19 @@ class ModbusGuiApp:
             args=(frame, "R_ADC1 sent", self._handle_adc1_read_response),
             daemon=True,
         ).start()
+    def send_r_gpio_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytes.fromhex(Read_Addr_GPIO)
+        frame = request + build_modbus_crc(request)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_GPIO sent", self._handle_gpio_read_response),
+            daemon=True,
+        ).start()
+    
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -427,6 +492,16 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_adc1_il1_r_var.set(adc1_il1))
         self.root.after(0, lambda: self.response_adc1_il2_r_var.set(adc1_il2))
         self.root.after(0, lambda: self.response_adc1_vac_r_var.set(adc1_vac))
+
+    def _handle_gpio_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        Fan1_RPM, DI_LLC_PwrGood, DO_RELAY, DO_AC_LOSS, DO_NotifyLLC = parse_gpio_read_response(response)
+        self.root.after(0, lambda: self.response_gpio_r_raw_var.set(response_text))
+        self.root.after(0, lambda: self.response_gpio_Fan1_RPM_r_var.set(Fan1_RPM))
+        self.root.after(0, lambda: self.response_gpio_DI_LLC_r_var.set(DI_LLC_PwrGood))
+        self.root.after(0, lambda: self.response_gpio_DO_RELAY_r_var.set(DO_RELAY))
+        self.root.after(0, lambda: self.response_gpio_DO_AC_LOSS_r_var.set(DO_AC_LOSS))
+        self.root.after(0, lambda: self.response_gpio_DO_NotifyLLC_r_var.set(DO_NotifyLLC))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
