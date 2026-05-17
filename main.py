@@ -8,7 +8,8 @@ from typing import Callable, List, Optional
 import serial
 from serial.tools import list_ports
 
-destinate_device = 0x04
+# destinate_device_options = ['single PFC 03', 'ControlBoard 04', 'PSU 00']
+destinate_device_options = [0x03, 0x04, 0x00]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Current = "03 03 00 61 00 06"
 Read_Addr_PWM_duty = "03 03 00 25 00 01"
@@ -21,8 +22,6 @@ def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
 def debug_print_rx(frame: bytes) -> None:
     print(f"Rx frame: {format_hex(frame)}")
-def fill_bytes0_device(request: bytearray) -> None:
-    request[0] = destinate_device
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
     for byte in data:
@@ -161,7 +160,8 @@ class ModbusGuiApp:
         ttk.Button(top, text="Disconnect", command=self.disconnect_port).grid(row=0, column=4)
 
         ttk.Label(top, text="DeviceBytes0").grid(row=0, column=5, sticky="w")
-        self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22)
+        self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22, values=destinate_device_options)
+        self.device_combo.current(0)
         self.device_combo.grid(row=0, column=6, padx=(8, 12), sticky="w")
 
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
@@ -401,13 +401,14 @@ class ModbusGuiApp:
                 self.status_var.set("Disconnected")
         else:
             self.serial_port = None
-
+    def fill_bytes0_device(self, request: bytearray) -> None:
+        request[0] = int(self.device_combo.get())
     def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
         request = bytearray.fromhex(Read_Addr_FW_version)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
@@ -432,7 +433,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Write_Addr_Current)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = current_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
@@ -449,7 +450,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Read_Addr_Current)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
@@ -463,7 +464,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Read_Addr_PWM_duty)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
 
         debug_print_tx(frame)
@@ -478,7 +479,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Read_Addr_ADC1)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
 
         debug_print_tx(frame)
@@ -493,7 +494,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Read_Addr_GPIO)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
 
         debug_print_tx(frame)
@@ -515,7 +516,7 @@ class ModbusGuiApp:
         )
 
         request = bytearray.fromhex(Write_Addr_GPIO)
-        fill_bytes0_device(request)
+        self.fill_bytes0_device(request)
         request[6] = gpio_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
