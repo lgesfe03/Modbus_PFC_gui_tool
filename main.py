@@ -8,18 +8,21 @@ from typing import Callable, List, Optional
 import serial
 from serial.tools import list_ports
 
-Read_Addr_FW_version = "04 03 00 01 00 04"
-Read_Addr_Current = "04 03 00 61 00 06"
-Read_Addr_PWM_duty = "04 03 00 25 00 01"
-Read_Addr_ADC1 = "04 03 00 0C 00 0A"
-Read_Addr_GPIO = "04 03 00 15 00 01"
-Write_Addr_Current = "04 06 04 48 00 02 00 01"
-Write_Addr_GPIO = "04 06 03 FC 00 01 00"
+destinate_device = 0x04
+Read_Addr_FW_version = "03 03 00 01 00 04"
+Read_Addr_Current = "03 03 00 61 00 06"
+Read_Addr_PWM_duty = "03 03 00 25 00 01"
+Read_Addr_ADC1 = "03 03 00 0C 00 0A"
+Read_Addr_GPIO = "03 03 00 15 00 01"
+Write_Addr_Current = "03 06 04 48 00 02 00 01"
+Write_Addr_GPIO = "03 06 03 FC 00 01 00"
 
 def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
 def debug_print_rx(frame: bytes) -> None:
     print(f"Rx frame: {format_hex(frame)}")
+def fill_bytes0_device(request: bytearray) -> None:
+    request[0] = destinate_device
 def build_modbus_crc(data: bytes) -> bytes:
     crc = 0xFFFF
     for byte in data:
@@ -103,10 +106,11 @@ class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Modbus PFC GUI Tool")
-        self.root.geometry("720x370")
+        self.root.geometry("1024x888")
 
         self.serial_port: Optional[serial.Serial] = None
         self.port_var = tk.StringVar()
+        self.device_byte0_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Disconnected")
         self.response_fw_version_read_raw_var = tk.StringVar(value="")
         self.response_fw_version_read_all_var = tk.StringVar(value="")
@@ -155,6 +159,10 @@ class ModbusGuiApp:
         ttk.Button(top, text="Refresh", command=self.refresh_ports).grid(row=0, column=2, padx=(0, 8))
         ttk.Button(top, text="Connect", command=self.connect_port).grid(row=0, column=3, padx=(0, 8))
         ttk.Button(top, text="Disconnect", command=self.disconnect_port).grid(row=0, column=4)
+
+        ttk.Label(top, text="DeviceBytes0").grid(row=0, column=5, sticky="w")
+        self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22)
+        self.device_combo.grid(row=0, column=6, padx=(8, 12), sticky="w")
 
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
             row=1, column=0, columnspan=5, sticky="w", pady=(10, 0)
@@ -398,9 +406,9 @@ class ModbusGuiApp:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
-
-        request = bytes.fromhex(Read_Addr_FW_version)
-        frame = request + build_modbus_crc(request)
+        request = bytearray.fromhex(Read_Addr_FW_version)
+        fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
@@ -424,6 +432,7 @@ class ModbusGuiApp:
             return
 
         request = bytearray.fromhex(Write_Addr_Current)
+        fill_bytes0_device(request)
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = current_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
@@ -439,8 +448,9 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        request = bytes.fromhex(Read_Addr_Current)
-        frame = request + build_modbus_crc(request)
+        request = bytearray.fromhex(Read_Addr_Current)
+        fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
@@ -452,8 +462,10 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        request = bytes.fromhex(Read_Addr_PWM_duty)
-        frame = request + build_modbus_crc(request)
+        request = bytearray.fromhex(Read_Addr_PWM_duty)
+        fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
@@ -465,8 +477,10 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        request = bytes.fromhex(Read_Addr_ADC1)
-        frame = request + build_modbus_crc(request)
+        request = bytearray.fromhex(Read_Addr_ADC1)
+        fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
@@ -478,8 +492,10 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        request = bytes.fromhex(Read_Addr_GPIO)
-        frame = request + build_modbus_crc(request)
+        request = bytearray.fromhex(Read_Addr_GPIO)
+        fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
@@ -499,6 +515,7 @@ class ModbusGuiApp:
         )
 
         request = bytearray.fromhex(Write_Addr_GPIO)
+        fill_bytes0_device(request)
         request[6] = gpio_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
