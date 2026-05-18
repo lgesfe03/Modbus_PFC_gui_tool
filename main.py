@@ -61,20 +61,24 @@ def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
         return "N/A", "N/A"
     if len(data) < 6+8:
         pwm_duty_FAH = str(data[7])
-        return pwm_duty_FAH, 0, 0, 0
+        return pwm_duty_FAH, "N/A", "N/A", "N/A"
     pwm_duty_FAH = str(data[13])
     pwm_duty_FAL = str(data[11])
     pwm_duty_FBH = str(data[9])
     pwm_duty_FBL = str(data[7])
     return pwm_duty_FAH, pwm_duty_FAL, pwm_duty_FBH, pwm_duty_FBL
 def convert_vac_voltage(u16_adc):
-    return str(u16_adc*0.2585 - 530.2)
+    multiply_offset = u16_adc*0.2585 - 530.2
+    return str(f"{(multiply_offset):.3f}")
 def convert_il_amp(u16_adc):
-    return str(u16_adc*0.0222- 45.537)
+    multiply_offset = u16_adc*0.0222- 45.537
+    return str(f"{(multiply_offset):.3f}")
 def convert_vbus_voltage(u16_adc):
-    return str(u16_adc*0.12924)
+    multiply_offset = u16_adc*0.12924
+    return str(f"{(multiply_offset):.3f}")
 def convert_1v65_voltage(u16_adc):
-    return str(u16_adc/4095*3.3)
+    multiply_offset = u16_adc/4095*3.3
+    return str(f"{(multiply_offset):.3f}")
 def parse_adc1_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+10:
         return "N/A", "N/A"
