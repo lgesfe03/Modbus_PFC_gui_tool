@@ -111,31 +111,24 @@ class ModbusGuiApp:
         self.port_var = tk.StringVar()
         self.device_byte0_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Disconnected")
-        self.response_fw_version_read_raw_var = tk.StringVar(value="")
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_from_gui_current_w_var = tk.StringVar(value="0")
-        self.response_current_w_raw_var = tk.StringVar(value="")
-        self.response_current_r_raw_var = tk.StringVar(value="")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
-        self.response_pwm_duty_r_raw_var = tk.StringVar(value="")
         self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FAL_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBL_duty_r_var = tk.StringVar(value="")
-        self.response_adc1_r_raw_var = tk.StringVar(value="")
         self.response_adc1_v165_r_var = tk.StringVar(value="")
         self.response_adc1_vbus_r_var = tk.StringVar(value="")
         self.response_adc1_il1_r_var = tk.StringVar(value="")
         self.response_adc1_il2_r_var = tk.StringVar(value="")
         self.response_adc1_vac_r_var = tk.StringVar(value="")
-        self.response_gpio_r_raw_var = tk.StringVar(value="")
         self.response_gpio_Fan1_RPM_r_var = tk.StringVar(value="")
         self.response_gpio_DI_LLC_r_var = tk.StringVar(value="")
         self.response_gpio_DO_RELAY_r_var = tk.StringVar(value="")
         self.response_gpio_DO_AC_LOSS_r_var = tk.StringVar(value="")
         self.response_gpio_DO_NotifyLLC_r_var = tk.StringVar(value="")
-        self.response_gpio_w_raw_var = tk.StringVar(value="")
         self.gpio_do_relay_w_var = tk.IntVar(value=0)
         self.gpio_do_ac_loss_w_var = tk.IntVar(value=0)
         self.gpio_do_notifyllc_w_var = tk.IntVar(value=0)
@@ -170,184 +163,148 @@ class ModbusGuiApp:
     # get version
         f_get_version = ttk.LabelFrame(root, text="FW_version", padding=12)
         f_get_version.pack(fill="x", pady=(12, 0))
-        ttk.Label(f_get_version, text="Response").grid(row=0, column=0, sticky="w")
-        self.response_entry = ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_raw_var, width=62, state="readonly")
-        self.response_entry.grid(row=0, column=1, padx=(8, 12), sticky="we")
         ttk.Button(f_get_version, text="R_Version", command=self.send_r_version_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_get_version, text="vser.").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(f_get_version, text="Version.").grid(row=0, column=1, sticky="w", pady=(8, 0))
         ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_all_var, width=18, state="readonly").grid(
-            row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        f_get_version.columnconfigure(1, weight=1)
+        f_get_version.columnconfigure(10, weight=1)
     # set current
-        f_current_w = ttk.LabelFrame(root, text="Current Write", padding=12)
-        f_current_w.pack(fill="x", pady=(12, 0))
-        ttk.Label(f_current_w, text="Current (uint8)").grid(row=0, column=0, sticky="w")
-        self.current_spin = ttk.Spinbox(f_current_w, from_=0, to=255, textvariable=self.input_from_gui_current_w_var, width=10)
-        self.current_spin.grid(row=0, column=1, padx=(8, 12), sticky="w")
-        ttk.Label(f_current_w, text="Response").grid(row=0, column=2, sticky="w")
-        self.current_response_entry = ttk.Entry(f_current_w, textvariable=self.response_current_w_raw_var, width=40, state="readonly")
-        self.current_response_entry.grid(row=0, column=3, padx=(8, 12), sticky="we")
-        ttk.Button(f_current_w, text="W_current", command=self.send_w_current_command, width=12).grid(
-            row=0, column=0, sticky="w"
+        f_current = ttk.LabelFrame(root, text="Current Related", padding=12)
+        f_current.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
+            row=1, column=0, sticky="w"
         )
-        f_current_w.columnconfigure(3, weight=1)
+        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_from_gui_current_w_var, width=10)
+        self.current_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
     # get current
-        f_current_r = ttk.LabelFrame(root, text="Current Read", padding=12)
-        f_current_r.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_current_r, text="R_current", command=self.send_r_current_command, width=12).grid(
+        ttk.Button(f_current, text="R_current", command=self.send_r_current_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_current_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.current_read_raw_entry = ttk.Entry(
-            f_current_r, textvariable=self.response_current_r_raw_var, width=42, state="readonly"
+        ttk.Label(f_current, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        self.current_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
-
-        ttk.Label(f_current_r, text="TTPLPFC_ac_cur_ref_inst_pu").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_r, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
-            row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+        ttk.Label(f_current, text="current_cmd_from_modbus").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_current_r, text="current_cmd_from_modbus").grid(row=1, column=2, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_r, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        f_current_r.columnconfigure(2, weight=1)
+        f_current.columnconfigure(10, weight=1)
     # get PWM duty
         f_r_pwm_duty = ttk.LabelFrame(root, text="PWM Read", padding=12)
         f_r_pwm_duty.pack(fill="x", pady=(12, 0))
         ttk.Button(f_r_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.pwm_duty_r_raw_entry = ttk.Entry(
-            f_r_pwm_duty, textvariable=self.response_pwm_duty_r_raw_var, width=42, state="readonly"
-        )
-        self.pwm_duty_r_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
-
-        ttk.Label(f_r_pwm_duty, text="PWM-FAH").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(f_r_pwm_duty, text="PWM-FAH").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
         ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
-            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FAL").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Label(f_r_pwm_duty, text="PWM-FAL").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
         ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
-            row=1, column=3, padx=(100, 0), pady=(8, 0), sticky="w"
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FBH").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Label(f_r_pwm_duty, text="PWM-FBH").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
         ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
-            row=1, column=5, padx=(58, 0), pady=(8, 0), sticky="w"
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FBL").grid(row=1, column=6, sticky="w", pady=(8, 0))
+        ttk.Label(f_r_pwm_duty, text="PWM-FBL").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
         ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
-            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        f_r_pwm_duty.columnconfigure(2, weight=1)
+        f_r_pwm_duty.columnconfigure(10, weight=1)
     # get ADC1s
         f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
         f_adc_r.pack(fill="x", pady=(12, 0))
         ttk.Button(f_adc_r, text="R_ADC1", command=self.send_r_adc1_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_adc_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.adc_read_raw_entry = ttk.Entry(
-            f_adc_r, textvariable=self.response_adc1_r_raw_var, width=42, state="readonly"
-        )
-        self.adc_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
 
-        
-        ttk.Label(f_adc_r, text="Vac").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(f_adc_r, text="Vac").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
         ttk.Entry(f_adc_r, textvariable=self.response_adc1_vac_r_var, width=18, state="readonly").grid(
-            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_adc_r, text="iL1").grid(row=1, column=2, sticky="w", pady=(8, 0))
+        ttk.Label(f_adc_r, text="iL1").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
         ttk.Entry(f_adc_r, textvariable=self.response_adc1_il1_r_var, width=18, state="readonly").grid(
-            row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_adc_r, text="iL2").grid(row=1, column=4, sticky="w", pady=(8, 0))
+        ttk.Label(f_adc_r, text="iL2").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
         ttk.Entry(f_adc_r, textvariable=self.response_adc1_il2_r_var, width=18, state="readonly").grid(
-            row=1, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_adc_r, text="Vbus").grid(row=1, column=6, sticky="w", pady=(8, 0))
+        ttk.Label(f_adc_r, text="Vbus").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
         ttk.Entry(f_adc_r, textvariable=self.response_adc1_vbus_r_var, width=18, state="readonly").grid(
-            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_adc_r, text="1.65V").grid(row=1, column=8, sticky="w", pady=(8, 0))
+        ttk.Label(f_adc_r, text="1.65V").grid(
+            row=0, column=9, sticky="w", pady=(8, 0))
         ttk.Entry(f_adc_r, textvariable=self.response_adc1_v165_r_var, width=18, state="readonly").grid(
-            row=1, column=9, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=10, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        f_adc_r.columnconfigure(2, weight=1)
+        f_adc_r.columnconfigure(11, weight=1)
     # get GPIO
-        f_gpio_r = ttk.LabelFrame(root, text="GPIO Read", padding=12)
-        f_gpio_r.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_gpio_r, text="R_GPIO", command=self.send_r_gpio_command, width=12).grid(
+        f_gpio = ttk.LabelFrame(root, text="GPIO Related", padding=12)
+        f_gpio.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_gpio, text="R_GPIO", command=self.send_r_gpio_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_gpio_r, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.gpio_read_raw_entry = ttk.Entry(
-            f_gpio_r, textvariable=self.response_gpio_r_raw_var, width=42, state="readonly"
+        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_NotifyLLC_r_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        self.gpio_read_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
-
-        
-        ttk.Label(f_gpio_r, text="DO_NotifyLLC").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_NotifyLLC_r_var, width=18, state="readonly").grid(
-            row=1, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_AC_LOSS_r_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_gpio_r, text="DO_AC_LOSS").grid(row=1, column=2, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_AC_LOSS_r_var, width=18, state="readonly").grid(
-            row=1, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+        ttk.Label(f_gpio, text="DO_RELAY").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_RELAY_r_var, width=18, state="readonly").grid(
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_gpio_r, text="DO_RELAY").grid(row=1, column=4, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DO_RELAY_r_var, width=18, state="readonly").grid(
-            row=1, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        ttk.Label(f_gpio, text="DI_LLC").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DI_LLC_r_var, width=18, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_gpio_r, text="DI_LLC").grid(row=1, column=6, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_DI_LLC_r_var, width=18, state="readonly").grid(
-            row=1, column=7, padx=(8, 0), pady=(8, 0), sticky="w"
+        ttk.Label(f_gpio, text="Fan1_RPM").grid(
+            row=0, column=9, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_Fan1_RPM_r_var, width=18, state="readonly").grid(
+            row=0, column=10, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_gpio_r, text="Fan1_RPM").grid(row=1, column=8, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio_r, textvariable=self.response_gpio_Fan1_RPM_r_var, width=18, state="readonly").grid(
-            row=1, column=9, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        f_gpio_r.columnconfigure(2, weight=1)
 
     # set GPIO
-        f_gpio_w = ttk.LabelFrame(root, text="GPIO Write", padding=12)
-        f_gpio_w.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_gpio_w, text="W_GPIO", command=self.send_w_gpio_command, width=12).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Label(f_gpio_w, text="Response").grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.gpio_write_raw_entry = ttk.Entry(
-            f_gpio_w, textvariable=self.response_gpio_w_raw_var, width=42, state="readonly"
-        )
-        self.gpio_write_raw_entry.grid(row=0, column=2, padx=(8, 12), sticky="we")
-        ttk.Label(f_gpio_w, text="DO_NotifyLLC").grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(
-            f_gpio_w,
-            variable=self.gpio_do_notifyllc_w_var,
-            onvalue=1,
-            offvalue=0,
-        ).grid(row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Button(f_gpio, text="W_GPIO", command=self.send_w_gpio_command, width=12).grid(
+            row=1, column=0, sticky="w")
+        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
+            row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio, variable=self.gpio_do_notifyllc_w_var, onvalue=1, offvalue=0,).grid(
+            row=1, column=2, sticky="w", pady=(8, 0))
         
-        ttk.Label(f_gpio_w, text="DO_AC_LOSS").grid(row=1, column=2, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(
-            f_gpio_w,
-            variable=self.gpio_do_ac_loss_w_var,
-            onvalue=1,
-            offvalue=0,
-        ).grid(row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
+            row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio,variable=self.gpio_do_ac_loss_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=4, sticky="w", pady=(8, 0))
         
-        ttk.Label(f_gpio_w, text="DO_RELAY").grid(row=1, column=4, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(
-            f_gpio_w,
-            variable=self.gpio_do_relay_w_var,
-            onvalue=1,
-            offvalue=0,
-        ).grid(row=1, column=5, sticky="w", pady=(8, 0))
-        f_gpio_w.columnconfigure(2, weight=1)
+        ttk.Label(f_gpio, text="DO_RELAY").grid(
+            row=1, column=5, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio,variable=self.gpio_do_relay_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=6, sticky="w", pady=(8, 0))
+        f_gpio.columnconfigure(10, weight=1)
 
     # history
         hint = ttk.Label(
@@ -551,20 +508,17 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
         version_byte0, version_byte1, version_byte2, version_byte3 = parse_version_read_response(response)
-        self.root.after(0, lambda: self.response_fw_version_read_raw_var.set(response_text))
         version_concat = version_byte3 + "." + version_byte2 + "." + version_byte1 + "." + version_byte0
         self.root.after(0, lambda: self.response_fw_version_read_all_var.set(version_concat))
     
     def _handle_parse_current_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_current_w_raw_var.set(response_text))
 
     def _handle_current_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
         float_value, current_cmd = parse_current_read_response(response)
-        self.root.after(0, lambda: self.response_current_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
         self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
 
@@ -572,7 +526,6 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
         PWM_FAH_duty = parse_pwm_duty_read_response(response)
-        self.root.after(0, lambda: self.response_pwm_duty_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_pwm_FAH_duty_r_var.set(PWM_FAH_duty))
         # self.root.after(0, lambda: self.response_pwm_FAL_duty_r_var.set(PWM_FAL_duty))
         # self.root.after(0, lambda: self.response_pwm_FBH_duty_r_var.set(PWM_FBH_duty))
@@ -582,7 +535,6 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
         adc1_v165, adc1_vbus, adc1_il2, adc1_il1, adc1_vac = parse_adc1_read_response(response)
-        self.root.after(0, lambda: self.response_adc1_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_adc1_v165_r_var.set(adc1_v165))
         self.root.after(0, lambda: self.response_adc1_vbus_r_var.set(adc1_vbus))
         self.root.after(0, lambda: self.response_adc1_il1_r_var.set(adc1_il1))
@@ -593,7 +545,6 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         Fan1_RPM, DI_LLC_PwrGood, DO_RELAY, DO_AC_LOSS, DO_NotifyLLC = parse_gpio_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_gpio_r_raw_var.set(response_text))
         self.root.after(0, lambda: self.response_gpio_Fan1_RPM_r_var.set(Fan1_RPM))
         self.root.after(0, lambda: self.response_gpio_DI_LLC_r_var.set(DI_LLC_PwrGood))
         self.root.after(0, lambda: self.response_gpio_DO_RELAY_r_var.set(DO_RELAY))
@@ -603,7 +554,6 @@ class ModbusGuiApp:
     def _handle_gpio_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_gpio_w_raw_var.set(response_text))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
