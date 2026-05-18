@@ -59,12 +59,13 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
         return "N/A", "N/A"
-
-    pwm_duty_FAH = str(data[7])
-    return pwm_duty_FAH
-    pwm_duty_FAL = str(data[8])
+    if len(data) < 6+8:
+        pwm_duty_FAH = str(data[7])
+        return pwm_duty_FAH, 0, 0, 0
+    pwm_duty_FAH = str(data[13])
+    pwm_duty_FAL = str(data[11])
     pwm_duty_FBH = str(data[9])
-    pwm_duty_FBL = str(data[10])
+    pwm_duty_FBL = str(data[7])
     return pwm_duty_FAH, pwm_duty_FAL, pwm_duty_FBH, pwm_duty_FBL
 def convert_vac_voltage(u16_adc):
     return str(u16_adc*0.2585 - 530.2)
@@ -525,11 +526,11 @@ class ModbusGuiApp:
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        PWM_FAH_duty = parse_pwm_duty_read_response(response)
+        PWM_FAH_duty, PWM_FAL_duty,  PWM_FBH_duty, PWM_FBL_duty= parse_pwm_duty_read_response(response)
         self.root.after(0, lambda: self.response_pwm_FAH_duty_r_var.set(PWM_FAH_duty))
-        # self.root.after(0, lambda: self.response_pwm_FAL_duty_r_var.set(PWM_FAL_duty))
-        # self.root.after(0, lambda: self.response_pwm_FBH_duty_r_var.set(PWM_FBH_duty))
-        # self.root.after(0, lambda: self.response_pwm_FBL_duty_r_var.set(PWM_FBL_duty))
+        self.root.after(0, lambda: self.response_pwm_FAL_duty_r_var.set(PWM_FAL_duty))
+        self.root.after(0, lambda: self.response_pwm_FBH_duty_r_var.set(PWM_FBH_duty))
+        self.root.after(0, lambda: self.response_pwm_FBL_duty_r_var.set(PWM_FBL_duty))
 
     def _handle_adc1_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
