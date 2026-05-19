@@ -17,6 +17,8 @@ Read_Addr_ADC1 = "03 03 00 0C 00 0A"
 Read_Addr_GPIO = "03 03 00 15 00 01"
 Write_Addr_Current = "03 06 04 48 00 02 00 01"
 Write_Addr_GPIO = "03 06 03 FC 00 01 00"
+Read_Addr_Leg = "03 03 00 19 00 04"
+Write_Addr_Leg = "03 06 04 00 00 04 00 00 00 00"
 
 def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
@@ -106,6 +108,13 @@ def parse_gpio_read_response(data: bytes) -> tuple[str, str]:
     bit_DO_AC_LOSS = (data[6] >> 3) & 0x01
     bit_DO_NotifyLLC = (data[6] >> 4) & 0x01
     return str(bit_Fan1_RPM), str(bit_DI_LLC_PwrGood), str(bit_DO_RELAY), str(bit_DO_AC_LOSS), str(bit_DO_NotifyLLC)
+def parse_leg_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    HFLegA_EN = (data[6] >> 0) & 0x01
+    HFLegB_EN = (data[6] >> 1) & 0x01
+    OPL_LFLeg_EN = (data[6] >> 2) & 0x01
+    OPL_HFLeg_SR_EN = (data[6] >> 3) & 0x01
 class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -138,6 +147,14 @@ class ModbusGuiApp:
         self.gpio_do_ac_loss_w_var = tk.IntVar(value=0)
         self.gpio_do_notifyllc_w_var = tk.IntVar(value=0)
 
+        self.response_leg_HFLegA_EN_r_var = tk.StringVar(value="")
+        self.response_leg_HFLegB_EN_r_var = tk.StringVar(value="")
+        self.response_leg_OPL_LFLeg_EN_r_var = tk.StringVar(value="")
+        self.response_leg_OPL_HFLeg_SR_EN_r_var = tk.StringVar(value="")
+        self.leg_HFLegA_EN_w_var = tk.IntVar(value=0)
+        self.leg_HFLegB_EN_w_var = tk.IntVar(value=0)
+        self.leg_OPL_LFLeg_EN_w_var = tk.IntVar(value=0)
+        self.leg_OPL_HFLeg_SR_EN_w_var = tk.IntVar(value=0)
 
         self._build_ui()
         self.refresh_ports()
@@ -310,6 +327,55 @@ class ModbusGuiApp:
         ttk.Checkbutton(f_gpio,variable=self.gpio_do_relay_w_var,onvalue=1,offvalue=0,).grid(
             row=1, column=6, sticky="w", pady=(8, 0))
         f_gpio.columnconfigure(10, weight=1)
+    # leg related 
+        f_leg = ttk.LabelFrame(root, text="leg Related", padding=12)
+        f_leg.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_leg, text="R_leg", command=self.send_r_leg_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_leg, text="HFLegA_EN").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_leg, textvariable=self.response_leg_HFLegA_EN_r_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_leg, text="HFLegB_EN").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_leg, textvariable=self.response_leg_HFLegB_EN_r_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_leg, text="OPL_LFLeg_EN").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
+        ttk.Entry(f_leg, textvariable=self.response_leg_OPL_LFLeg_EN_r_var, width=18, state="readonly").grid(
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_leg, text="OPL_HFLeg_SR_EN").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_leg, textvariable=self.response_leg_OPL_HFLeg_SR_EN_r_var, width=18, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        #set leg
+        ttk.Button(f_leg, text="W_leg", command=self.send_w_leg_command, width=12).grid(
+            row=1, column=0, sticky="w")
+        ttk.Label(f_leg, text="HFLegA_EN").grid(
+            row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_leg, variable=self.leg_HFLegA_EN_w_var, onvalue=1, offvalue=0,).grid(
+            row=1, column=2, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_leg, text="HFLegB_EN").grid(
+            row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_leg,variable=self.leg_HFLegB_EN_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=4, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_leg, text="OPL_LFLeg_EN").grid(
+            row=1, column=5, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_leg,variable=self.leg_OPL_LFLeg_EN_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=6, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_leg, text="OPL_HFLeg_SR_EN").grid(
+            row=1, column=7, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_leg,variable=self.leg_OPL_HFLeg_SR_EN_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=8, sticky="w", pady=(8, 0))
+        f_leg.columnconfigure(10, weight=1)
 
     # history
         hint = ttk.Label(
@@ -488,6 +554,45 @@ class ModbusGuiApp:
             daemon=True,
         ).start()
     
+    def send_r_leg_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Read_Addr_Leg)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_GPIO sent", self._handle_leg_read_response),
+            daemon=True,
+        ).start()
+    
+    def send_w_leg_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        leg_value = (
+            (self.leg_HFLegA_EN_w_var.get() & 0x01)
+            | ((self.leg_HFLegB_EN_w_var.get() & 0x01) << 1)
+            | ((self.leg_OPL_LFLeg_EN_w_var.get() & 0x01) << 2)
+            | ((self.leg_OPL_HFLeg_SR_EN_w_var.get() & 0x01) << 3)
+        )
+
+        request = bytearray.fromhex(Write_Addr_Leg)
+        self.fill_bytes0_device(request)
+        request[6] = leg_value
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_GPIO sent", self._handle_leg_write_response),
+            daemon=True,
+        ).start()
+
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -557,6 +662,18 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_gpio_DO_NotifyLLC_r_var.set(DO_NotifyLLC))
 
     def _handle_gpio_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+
+    def _handle_leg_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        HFLegA_EN, HFLegB_EN, OPL_LFLeg_EN, OPL_HFLeg_SR_EN = parse_leg_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_leg_HFLegA_EN_r_var.set(HFLegA_EN))
+        self.root.after(0, lambda: self.response_leg_HFLegB_EN_r_var.set(HFLegB_EN))
+        self.root.after(0, lambda: self.response_leg_OPL_LFLeg_EN_r_var.set(OPL_LFLeg_EN))
+        self.root.after(0, lambda: self.response_leg_OPL_HFLeg_SR_EN_r_var.set(OPL_HFLeg_SR_EN))
+    def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
 
