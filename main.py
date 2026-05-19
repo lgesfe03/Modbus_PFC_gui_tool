@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import struct
 from typing import Callable, List, Optional
-
+from enum import Enum, auto
 import serial
 from serial.tools import list_ports
 
@@ -31,6 +31,18 @@ Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
 LUT_SIZE = len(lut_adc)
+
+class _Working_Mode(Enum):
+    A2D_SELF_TEST_MODE = 0
+    A2D_WAIT_MODE = auto()
+    A2D_IDLE_MODE = auto()
+    A2D_INIT_MODE = auto()
+    A2D_START_MODE = auto()
+    A2D_RUN_MODE = auto()
+    A2D_STOP_MODE = auto()
+    A2D_FAULT_MODE = auto()
+    A2D_TEST_INIT_MODE = auto()
+    D2D_TEST_RUN_MODE = auto()
 
 def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
@@ -518,7 +530,7 @@ class ModbusGuiApp:
         )
         ttk.Label(f_status, text="Working_Mode").grid(
             row=0, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=20, state="readonly").grid(
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=12).grid(
@@ -947,7 +959,9 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         Working_Mode = parse_working_mode_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_Working_Mode_r_var.set(Working_Mode))
+        enum_working_mode = _Working_Mode(Working_Mode)
+        print(f"{enum_working_mode.name}({Working_Mode})")
+        self.root.after(0, lambda: self.response_Working_Mode_r_var.set(f"{enum_working_mode.name}({Working_Mode})"))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
