@@ -115,6 +115,7 @@ def parse_leg_read_response(data: bytes) -> tuple[str, str]:
     HFLegB_EN = (data[6] >> 1) & 0x01
     OPL_LFLeg_EN = (data[6] >> 2) & 0x01
     OPL_HFLeg_SR_EN = (data[6] >> 3) & 0x01
+    return HFLegA_EN, HFLegB_EN, OPL_LFLeg_EN, OPL_HFLeg_SR_EN
 class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
