@@ -19,6 +19,10 @@ Write_Addr_Current = "03 06 04 48 00 02 00 01"
 Write_Addr_GPIO = "03 06 03 FC 00 01 00"
 Read_Addr_Leg = "03 03 00 19 00 04"
 Write_Addr_Leg = "03 06 04 00 00 04 00 00 00 00"
+Read_Addr_status_fault_mode = "03 03 00 41 00 04"
+Read_Addr_status_error_mode = "03 03 00 42 00 04"
+Read_Addr_status_warning_mode = "03 03 00 43 00 04"
+Read_Addr_status_working_mode = "03 03 00 45 00 01"
 
 def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
@@ -116,6 +120,19 @@ def parse_leg_read_response(data: bytes) -> tuple[str, str]:
     OPL_LFLeg_EN = (data[6] >> 2) & 0x01
     OPL_HFLeg_SR_EN = (data[6] >> 3) & 0x01
     return HFLegA_EN, HFLegB_EN, OPL_LFLeg_EN, OPL_HFLeg_SR_EN
+
+def parse_u32_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    u32 = data[6]<<24 |data[7]<<16 |data[8]<<8 | data[9]
+    return u32
+
+def parse_working_mode_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+1:
+        return "N/A", "N/A"
+    working_mode = data[6]
+    return working_mode
+    
 class ModbusGuiApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -156,6 +173,11 @@ class ModbusGuiApp:
         self.leg_HFLegB_EN_w_var = tk.IntVar(value=0)
         self.leg_OPL_LFLeg_EN_w_var = tk.IntVar(value=0)
         self.leg_OPL_HFLeg_SR_EN_w_var = tk.IntVar(value=0)
+
+        self.response_Fault_Code_r_var = tk.StringVar(value="")
+        self.response_Error_Code_r_var = tk.StringVar(value="")
+        self.response_Warning_Code_r_var = tk.StringVar(value="")
+        self.response_Working_Mode_r_var = tk.StringVar(value="")
 
         self._build_ui()
         self.refresh_ports()
@@ -377,7 +399,33 @@ class ModbusGuiApp:
         ttk.Checkbutton(f_leg,variable=self.leg_OPL_HFLeg_SR_EN_w_var,onvalue=1,offvalue=0,).grid(
             row=1, column=8, sticky="w", pady=(8, 0))
         f_leg.columnconfigure(10, weight=1)
-
+    # status related 
+        f_status = ttk.LabelFrame(root, text="status Related", padding=12)
+        f_status.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_status, text="R_status", command=self.send_r_status_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_status, text="FAULT_CODE").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="ERROR_CODE").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_Error_Code_r_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="WARNING_CODE").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_Warning_Code_r_var, width=18, state="readonly").grid(
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="Working_Mode").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=18, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        f_status.columnconfigure(10, weight=1)
     # history
         hint = ttk.Label(
             root,
@@ -594,6 +642,31 @@ class ModbusGuiApp:
             daemon=True,
         ).start()
 
+    def send_r_status_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        array_cmd = [Read_Addr_status_fault_mode, 
+                     Read_Addr_status_error_mode, 
+                     Read_Addr_status_warning_mode, 
+                     Read_Addr_status_working_mode]
+        array_handle = [self._handle_fault_code_read_response, 
+                        self._handle_error_code_read_response, 
+                        self._handle_warning_code_read_response, 
+                        self._handle_workingmode_read_response]
+
+        for _cmd, _handle in zip(array_cmd, array_handle):
+            request = bytearray.fromhex(_cmd)
+            self.fill_bytes0_device(request)
+            frame = bytes(request) + build_modbus_crc(bytes(request))
+
+            debug_print_tx(frame)
+            threading.Thread(
+                target=self._send_frame_worker,
+                args=(frame, "R_status sent", _handle),
+                daemon=True,
+            ).start()
+            time.sleep(0.2)
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -677,6 +750,30 @@ class ModbusGuiApp:
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
+
+    def _handle_fault_code_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        Fault_Code = parse_u32_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_Fault_Code_r_var.set(Fault_Code))
+
+    def _handle_error_code_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        Error_Code = parse_u32_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_Error_Code_r_var.set(Error_Code))
+
+    def _handle_warning_code_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        Warning_Code = parse_u32_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_Warning_Code_r_var.set(Warning_Code))
+
+    def _handle_workingmode_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        Working_Mode = parse_working_mode_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_Working_Mode_r_var.set(Working_Mode))
 
     def _read_response(self) -> bytes:
         if not self.serial_port:
