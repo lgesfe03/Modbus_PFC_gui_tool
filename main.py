@@ -13,6 +13,7 @@ destinate_device_options = [0x03, 0x04, 0x00]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Current = "03 03 00 61 00 06"
 Read_Addr_PWM_duty = "03 03 00 25 00 01"
+Write_Addr_PWM_duty = "03 06 04 0C 00 02 00 00"
 Read_Addr_ADC1 = "03 03 00 0C 00 0A"
 Read_Addr_ADC2 = "03 03 00 0D 00 08"
 Read_Addr_GPIO = "03 03 00 15 00 01"
@@ -200,6 +201,9 @@ class ModbusGuiApp:
         self.response_pwm_FAL_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBL_duty_r_var = tk.StringVar(value="")
+        self.input_pwm_duty_w_var = tk.StringVar(value="0")
+
+
         self.response_adc1_v165_r_var = tk.StringVar(value="")
         self.response_adc1_vbus_r_var = tk.StringVar(value="")
         self.response_adc1_il1_r_var = tk.StringVar(value="")
@@ -272,16 +276,10 @@ class ModbusGuiApp:
             row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
         )
         f_get_version.columnconfigure(10, weight=1)
-    # set current
+    # current related
         f_current = ttk.LabelFrame(root, text="Current Related", padding=12)
-        f_current.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
-            row=1, column=0, sticky="w"
-        )
-        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_current_w_var, width=10)
-        self.current_spin.grid(
-            row=1, column=1, padx=(8, 12), sticky="w")
-    # get current
+        f_current.pack(fill="x", pady=(12, 0))        
+        # get current
         ttk.Button(f_current, text="R_current", command=self.send_r_current_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
@@ -295,34 +293,50 @@ class ModbusGuiApp:
         ttk.Entry(f_current, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
             row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
+        # set current
+        ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
+            row=1, column=0, sticky="w"
+        )
+        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_current_w_var, width=10)
+        self.current_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
         f_current.columnconfigure(10, weight=1)
-    # get PWM duty
-        f_r_pwm_duty = ttk.LabelFrame(root, text="PWM Read", padding=12)
-        f_r_pwm_duty.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_r_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
+    # PWM duty related
+        f_pwm_duty = ttk.LabelFrame(root, text="PWM related", padding=12)
+        f_pwm_duty.pack(fill="x", pady=(12, 0))
+        #get pwm duty
+        ttk.Button(f_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FAH").grid(
+        ttk.Label(f_pwm_duty, text="PWM-FAH").grid(
             row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
             row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FAL").grid(
+        ttk.Label(f_pwm_duty, text="PWM-FAL").grid(
             row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
             row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FBH").grid(
+        ttk.Label(f_pwm_duty, text="PWM-FBH").grid(
             row=0, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
             row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_r_pwm_duty, text="PWM-FBL").grid(
+        ttk.Label(f_pwm_duty, text="PWM-FBL").grid(
             row=0, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_r_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        f_r_pwm_duty.columnconfigure(10, weight=1)
+        #set pwm duty
+        ttk.Button(f_pwm_duty, text="W_current", command=self.send_w_pwm_duty_command, width=12).grid(
+            row=1, column=0, sticky="w"
+        )
+        self.pwm_duty_spin = ttk.Spinbox(f_pwm_duty, from_=0, to=255, textvariable=self.input_pwm_duty_w_var, width=10)
+        self.pwm_duty_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
+        
+        f_pwm_duty.columnconfigure(10, weight=1)
     # get ADCs
         f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
         f_adc_r.pack(fill="x", pady=(12, 0))
@@ -608,7 +622,33 @@ class ModbusGuiApp:
             args=(frame, "W_current sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
+    def send_w_pwm_duty_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
 
+        try:
+            duty_value = int(self.input_pwm_duty_w_var.get().strip())
+        except ValueError:
+            messagebox.showwarning("Invalid PWM duty", "PWM duty must be an integer between 0 and 100.")
+            return
+
+        if not 0 <= duty_value <= 100:
+            messagebox.showwarning("Invalid current", "PWM duty must be an integer between 0 and 100.")
+            return
+
+        request = bytearray.fromhex(Write_Addr_PWM_duty)
+        self.fill_bytes0_device(request)
+        # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
+        request[7] = duty_value
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_current sent", self._handle_parse_pwm_duty_write_response),
+            daemon=True,
+        ).start()
+    
     def send_r_current_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -820,7 +860,9 @@ class ModbusGuiApp:
     def _handle_parse_current_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-
+    def _handle_parse_pwm_duty_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
     def _handle_current_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
