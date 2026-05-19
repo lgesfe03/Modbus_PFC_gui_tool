@@ -24,6 +24,7 @@ Read_Addr_status_fault_mode = "03 03 00 41 00 04"
 Read_Addr_status_error_mode = "03 03 00 42 00 04"
 Read_Addr_status_warning_mode = "03 03 00 43 00 04"
 Read_Addr_status_working_mode = "03 03 00 45 00 01"
+Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
@@ -192,7 +193,7 @@ class ModbusGuiApp:
         self.device_byte0_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Disconnected")
         self.response_fw_version_read_all_var = tk.StringVar(value="")
-        self.input_from_gui_current_w_var = tk.StringVar(value="0")
+        self.input_current_w_var = tk.StringVar(value="0")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
         self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
@@ -232,6 +233,7 @@ class ModbusGuiApp:
         self.response_Error_Code_r_var = tk.StringVar(value="")
         self.response_Warning_Code_r_var = tk.StringVar(value="")
         self.response_Working_Mode_r_var = tk.StringVar(value="")
+        self.input_protect_reset_w_var = tk.IntVar(value=0)
 
         self._build_ui()
         self.refresh_ports()
@@ -276,7 +278,7 @@ class ModbusGuiApp:
         ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
-        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_from_gui_current_w_var, width=10)
+        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_current_w_var, width=10)
         self.current_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
     # get current
@@ -505,6 +507,12 @@ class ModbusGuiApp:
         ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=18, state="readonly").grid(
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
+        ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=12).grid(
+            row=1, column=0, sticky="w")
+        ttk.Label(f_status, text="Protect_reset").grid(
+            row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
+            row=1, column=2, sticky="w", pady=(8, 0))
         f_status.columnconfigure(10, weight=1)
     # history
         hint = ttk.Label(
@@ -580,7 +588,7 @@ class ModbusGuiApp:
             return
 
         try:
-            current_value = int(self.input_from_gui_current_w_var.get().strip())
+            current_value = int(self.input_current_w_var.get().strip())
         except ValueError:
             messagebox.showwarning("Invalid current", "Current must be an integer between 0 and 255.")
             return
@@ -736,6 +744,25 @@ class ModbusGuiApp:
             args=(frame, "W_GPIO sent", self._handle_leg_write_response),
             daemon=True,
         ).start()
+    def send_w_protect_reset_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        protect_reset_value = (
+            (self.input_protect_reset_w_var.get() & 0x01)
+        )
+
+        request = bytearray.fromhex(Write_Addr_Protect_Reset)
+        self.fill_bytes0_device(request)
+        request[6] = protect_reset_value
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_GPIO sent", self._handle_protect_reset_write_response),
+            daemon=True,
+        ).start()
 
     def send_r_status_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
@@ -853,7 +880,9 @@ class ModbusGuiApp:
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-
+    def _handle_protect_reset_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
     def _handle_fault_code_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Fault_Code = parse_u32_read_response(response)
