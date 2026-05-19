@@ -44,6 +44,112 @@ class _Working_Mode(Enum):
     A2D_TEST_INIT_MODE = auto()
     D2D_TEST_RUN_MODE = auto()
 
+FAULT_MASKS = {
+    "PFC_IL1_TZ_OCP":   0x00000001,  # Bit 0
+    "PFC_IL1_SW_RCP":   0x00000002,  # Bit 1
+    "PFC_IL2_TZ_OCP":   0x00000004,  # Bit 2
+    "PFC_IL2_SW_RCP":   0x00000008,  # Bit 3
+    "PFC_VBUS_TZ_OVP":  0x00000010,  # Bit 4
+    "PFC_VAC_OVP":      0x00000020,  # Bit 5
+    "PFC_VAC_UFP":      0x00000040,  # Bit 6
+    "PFC_VAC_OFP":      0x00000080,  # Bit 7
+    "PFC_OTP_1":        0x00000100,# Bit 8
+    "PFC_OTP_2":        0x00000200,# Bit 9
+    "PFC_OTP_3":        0x00000400,# Bit 10
+    "PFC_OTP_4":        0x00000800,# Bit 11
+    "PFC_VAC_UVP":      0x00001000,# Bit 12
+    "FAU_14":           0x00002000,# Bit 13
+    "FAU_15":           0x00004000,# Bit 14
+    "FAU_16":           0x00008000,# Bit 15
+}
+
+ERROR_MASK = {
+    "ERR_01_SCP":                      0x00000001,    #Bit 0
+    "ERR_02_OPP_LV1":                  0x00000002,    #Bit 1
+    "ERR_03_OPP_LV2":                  0x00000004,    #Bit 2
+    "ERR_04_OTP":                      0x00000008,    #Bit 3
+    "ERR_05_EEP_READ_CALI_NG":         0x00000010,    #Bit 4
+    "ERR_06_EEP_READ_CONFIG_NG":       0x00000020,    #Bit 5
+    "ERR_07_EEP_READ_EVENT_NG":        0x00000040,    #Bit 6
+    "ERR_08_PSKILL":                   0x00000080,    #Bit 7
+
+    "ERR_09_OCP":                      0x00000100,    #Bit 8
+    "ERR_10_PFC_OVP":                  0x00000200,    #Bit 9
+    "ERR_11_Check_CS_IOUT_AD":         0x00000400,    #Bit 10
+    "ERR_12_Check_I_SHARE_IN_AD":      0x00000800,    #Bit 11
+    "ERR_13_Check_PFC_VOUT_AD":        0x00001000,    #Bit 12
+    "ERR_14_Check_VOUT_AD":            0x00002000,    #Bit 13
+    "ERR_15_Check_REF_0V3_AD":         0x00004000,    #Bit 14
+    "ERR_16_Check_NTC_AD_00":          0x00008000,    #Bit 15
+
+    "ERR_17_Check_NTC_AD_01":          0x00010000,    #Bit 16
+    "ERR_18_Check_NTC_AD_02":          0x00020000,    #Bit 17
+    "ERR_19_Check_NTC_AD_03":          0x00040000,    #Bit 18
+    "ERR_20_Check_NTC_AD_04":          0x00080000,    #Bit 19
+    "ERR_21_Check_NTC_AD_05":          0x00100000,    #Bit 20
+    "ERR_22_Check_ACDC_Status":        0x00200000,    #Bit 21
+    "ERR_23_Check_IOUT_Sense1_AD":     0x00400000,    #Bit 22
+    "ERR_24_Check_IOUT_Sense2_AD":     0x00800000,    #Bit 23
+
+    "ERR_25_Check_REF_1V65_AD_1":      0x01000000,    #Bit 24
+    "ERR_26_Check_REF_1V65_AD_2":      0x02000000,    #Bit 25
+    "ERR_27_OPP_LV3":                  0x04000000,    #Bit 26
+    "ERR_28_OPP_LV4":                  0x08000000,    #Bit 27
+    "ERR_29_OPP_LV5":                  0x10000000,    #Bit 28
+    "ERR_30_SR_MOS_SCP":               0x20000000,    #Bit 29
+    "ERR_31":                          0x40000000,    #Bit 30
+    "ERR_32":                          0x80000000,    #Bit 31
+}
+
+WARNING_MASK = {
+    "WAR_01_UVP":                      0x00000001,    #Bit 0
+    "WAR_02_FAN_NG":                   0x00000002,    #Bit 1
+    "WAR_03_TO_MCU_UART_NG":           0x00000004,    #Bit 2
+    "WAR_04_EEP_WRITE_NG":             0x00000008,    #Bit 3
+    "WAR_05_TO_CB1_UART_NG":           0x00000010,    #Bit 2
+    "WAR_06_EEP_READ_LENGTH_NG":       0x00000020,    #Bit 5
+    "WAR_07_EEP_READ_DATA_NG":         0x00000040,    #Bit 6
+    "WAR_08_EEP_CHECKSUM_NG":          0x00000080,    #Bit 7
+
+    "WAR_09_EEP_READ_DATA_SHORT":      0x00000100,    #Bit 8
+    "WAR_10_FAN1_NG":                  0x00000200,    #Bit 9
+    "WAR_11_FAN2_NG":                  0x00000400,    #Bit 10
+    "WAR_12_EEP_READ_CONFIG_NG":       0x00000800,    #Bit 11
+    "WAR_13_EEP_READ_CALI_NG":         0x00001000,    #Bit 12
+    "WAR_14_EEP_READ_EVENT_NG":        0x00002000,    #Bit 13
+    "WAR_15":                          0x00004000,    #Bit 14
+    "WAR_16":                          0x00008000,    #Bit 15
+
+    "WAR_17":                          0x00010000,    #Bit 16
+    "WAR_18":                          0x00020000,    #Bit 17
+    "WAR_19":                          0x00040000,    #Bit 18
+    "WAR_20":                          0x00080000,    #Bit 19
+    "WAR_21":                          0x00100000,    #Bit 20
+    "WAR_22":                          0x00200000,    #Bit 21
+    "WAR_23":                          0x00400000,    #Bit 22
+    "WAR_24":                          0x00800000,    #Bit 23
+
+    "WAR_25":                          0x01000000,    #Bit 24
+    "WAR_26":                          0x02000000,    #Bit 25
+    "WAR_27":                          0x04000000,    #Bit 26
+    "WAR_28":                          0x08000000,    #Bit 27
+    "WAR_29":                          0x10000000,    #Bit 28
+    "WAR_30":                          0x20000000,    #Bit 29
+    "WAR_31":                          0x40000000,    #Bit 30
+    "WAR_32":                          0x80000000,    #Bit 31
+}
+
+def decode_faults(fault_code: int) -> list:
+    """Return list of active fault names for given fault_code."""
+    return [name for name, mask in FAULT_MASKS.items() if (fault_code & mask) != 0]
+
+def decode_errors(error_code: int) -> list:
+    return [name for name, mask in ERROR_MASK.items() if (error_code & mask) != 0]
+
+def decode_warnings(warning_code: int) -> list:
+    return [name for name, mask in WARNING_MASK.items() if (warning_code & mask) != 0]
+
+
 def debug_print_tx(frame: bytes) -> None:
     print(f"Tx frame: {format_hex(frame)}")
 def debug_print_rx(frame: bytes) -> None:
@@ -515,7 +621,7 @@ class ModbusGuiApp:
         )
         ttk.Label(f_status, text="FAULT_CODE").grid(
             row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=22, state="readonly").grid(
             row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="ERROR_CODE").grid(
@@ -937,23 +1043,27 @@ class ModbusGuiApp:
     def _handle_protect_reset_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
+
     def _handle_fault_code_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Fault_Code = parse_u32_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_Fault_Code_r_var.set(Fault_Code))
+        parse_Fault_Code = decode_faults(Fault_Code)
+        self.root.after(0, lambda: self.response_Fault_Code_r_var.set(f"{parse_Fault_Code}({Fault_Code})"))
 
     def _handle_error_code_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Error_Code = parse_u32_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_Error_Code_r_var.set(Error_Code))
+        parse_Error_Code = decode_errors(Error_Code)
+        self.root.after(0, lambda: self.response_Error_Code_r_var.set(f"{parse_Error_Code}({Error_Code})"))
 
     def _handle_warning_code_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Warning_Code = parse_u32_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_Warning_Code_r_var.set(Warning_Code))
+        parse_Warning_Code = decode_warnings(Warning_Code)
+        self.root.after(0, lambda: self.response_Warning_Code_r_var.set(f"{parse_Warning_Code}({Warning_Code})"))
 
     def _handle_workingmode_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
