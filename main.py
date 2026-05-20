@@ -26,6 +26,7 @@ Read_Addr_status_error_mode = "03 03 00 42 00 04"
 Read_Addr_status_warning_mode = "03 03 00 43 00 04"
 Read_Addr_status_working_mode = "03 03 00 45 00 01"
 Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
+Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
 
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
@@ -356,6 +357,7 @@ class ModbusGuiApp:
         self.response_Warning_Code_r_var = tk.StringVar(value="")
         self.response_Working_Mode_r_var = tk.StringVar(value="")
         self.input_protect_reset_w_var = tk.IntVar(value=0)
+        self.input_working_mode_w_var = tk.StringVar(value="0")
 
         self._build_ui()
         self.refresh_ports()
@@ -447,7 +449,7 @@ class ModbusGuiApp:
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         #set pwm duty
-        ttk.Button(f_pwm_duty, text="W_current", command=self.send_w_pwm_duty_command, width=12).grid(
+        ttk.Button(f_pwm_duty, text="W_pwm_duty", command=self.send_w_pwm_duty_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
         self.pwm_duty_spin = ttk.Spinbox(f_pwm_duty, from_=0, to=255, textvariable=self.input_pwm_duty_w_var, width=10)
@@ -639,12 +641,20 @@ class ModbusGuiApp:
         ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=20, state="readonly").grid(
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
+        #write protect reset
         ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=12).grid(
             row=1, column=0, sticky="w")
         ttk.Label(f_status, text="Protect_reset").grid(
             row=1, column=1, sticky="w", pady=(8, 0))
         ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
             row=1, column=2, sticky="w", pady=(8, 0))
+        #write working mode
+        ttk.Button(f_status, text="W_work_mode", command=self.send_w_working_mode_command, width=12).grid(
+            row=1, column=3, sticky="w"
+        )
+        self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
+        self.work_mode_spin.grid(
+            row=1, column=4, padx=(8, 12), sticky="w")
         f_status.columnconfigure(10, weight=1)
     # history
         hint = ttk.Label(
@@ -722,11 +732,11 @@ class ModbusGuiApp:
         try:
             current_value = int(self.input_current_w_var.get().strip())
         except ValueError:
-            messagebox.showwarning("Invalid current", "Current must be an integer between 0 and 255.")
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 255.")
             return
 
         if not 0 <= current_value <= 255:
-            messagebox.showwarning("Invalid current", "Current must be an integer between 0 and 255.")
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 255.")
             return
 
         request = bytearray.fromhex(Write_Addr_Current)
@@ -748,22 +758,21 @@ class ModbusGuiApp:
         try:
             duty_value = int(self.input_pwm_duty_w_var.get().strip())
         except ValueError:
-            messagebox.showwarning("Invalid PWM duty", "PWM duty must be an integer between 0 and 100.")
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 100.")
             return
 
         if not 0 <= duty_value <= 100:
-            messagebox.showwarning("Invalid current", "PWM duty must be an integer between 0 and 100.")
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 100.")
             return
 
         request = bytearray.fromhex(Write_Addr_PWM_duty)
         self.fill_bytes0_device(request)
-        # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = duty_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
-            args=(frame, "W_current sent", self._handle_parse_pwm_duty_write_response),
+            args=(frame, "W_pwm_duty sent", self._handle_parse_pwm_duty_write_response),
             daemon=True,
         ).start()
     
@@ -921,7 +930,32 @@ class ModbusGuiApp:
             args=(frame, "W_GPIO sent", self._handle_protect_reset_write_response),
             daemon=True,
         ).start()
+    def send_w_working_mode_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
 
+        try:
+            work_mode_value = int(self.input_working_mode_w_var.get().strip())
+        except ValueError:
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 9.")
+            return
+
+        if not 0 <= work_mode_value <= 9:
+            messagebox.showwarning("Invalid value", "must be an integer between 0 and 9.")
+            return
+
+        request = bytearray.fromhex(Write_Addr_Working_Mode)
+        self.fill_bytes0_device(request)
+        # Fill the 8th byte (index 7) before appending CRC
+        request[6] = work_mode_value
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_working_mode sent", self._handle_working_mode_write_response),
+            daemon=True,
+        ).start()
     def send_r_status_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1043,7 +1077,9 @@ class ModbusGuiApp:
     def _handle_protect_reset_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-
+    def _handle_working_mode_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
     def _handle_fault_code_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         Fault_Code = parse_u32_read_response(response)
@@ -1070,7 +1106,6 @@ class ModbusGuiApp:
         Working_Mode = parse_working_mode_read_response(response)
         debug_print_rx(response)
         enum_working_mode = _Working_Mode(Working_Mode)
-        print(f"{enum_working_mode.name}({Working_Mode})")
         self.root.after(0, lambda: self.response_Working_Mode_r_var.set(f"{enum_working_mode.name}({Working_Mode})"))
 
     def _read_response(self) -> bytes:
