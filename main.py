@@ -28,7 +28,9 @@ Read_Addr_status_warning_mode = "03 03 00 43 00 04"
 Read_Addr_status_working_mode = "03 03 00 45 00 01"
 Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
-
+Read_Addr_Output_Voltage = "03 03 00 5F 00 02"
+Read_Addr_Input_Voltage = "03 03 00 60 00 02"
+Read_Addr_Input_Current = "03 03 00 62 00 02"
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -190,11 +192,6 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
     current_ref = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
     current_cmd = str(data[11])
     return current_ref, current_cmd
-def parse_cla_heartbeat_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 6+4:
-        return "N/A", "N/A"
-    u32 = data[6]<<24 |data[7]<<16 |data[8]<<8 | data[9]
-    return u32
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
         return "N/A", "N/A"
@@ -296,6 +293,12 @@ def parse_leg_read_response(data: bytes) -> tuple[str, str]:
     OPL_HFLeg_SR_EN = (data[6] >> 3) & 0x01
     return HFLegA_EN, HFLegB_EN, OPL_LFLeg_EN, OPL_HFLeg_SR_EN
 
+def parse_u16_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    u16 = data[6]<<8 | data[7]
+    return u16
+
 def parse_u32_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+4:
         return "N/A", "N/A"
@@ -365,6 +368,11 @@ class ModbusGuiApp:
         self.response_Working_Mode_r_var = tk.StringVar(value="")
         self.input_protect_reset_w_var = tk.IntVar(value=0)
         self.input_working_mode_w_var = tk.StringVar(value="0")
+        self.response_voltage_out_r_var = tk.StringVar(value="")
+        self.response_voltage_in_r_var = tk.StringVar(value="")
+        self.response_current_in_r_var = tk.StringVar(value="")
+
+        
 
         self._build_ui()
         self.refresh_ports()
@@ -465,7 +473,7 @@ class ModbusGuiApp:
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         #set pwm duty
-        ttk.Button(f_pwm_duty, text="W_pwm_duty", command=self.send_w_pwm_duty_command, width=12).grid(
+        ttk.Button(f_pwm_duty, text="W_PWM_duty", command=self.send_w_pwm_duty_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
         self.pwm_duty_spin = ttk.Spinbox(f_pwm_duty, from_=0, to=255, textvariable=self.input_pwm_duty_w_var, width=10)
@@ -583,7 +591,7 @@ class ModbusGuiApp:
             row=1, column=6, sticky="w", pady=(8, 0))
         f_gpio.columnconfigure(10, weight=1)
     # leg related 
-        f_leg = ttk.LabelFrame(root, text="leg Related", padding=12)
+        f_leg = ttk.LabelFrame(root, text="Leg Related", padding=12)
         f_leg.pack(fill="x", pady=(12, 0))
         ttk.Button(f_leg, text="R_leg", command=self.send_r_leg_command, width=12).grid(
             row=0, column=0, sticky="w"
@@ -632,7 +640,7 @@ class ModbusGuiApp:
             row=1, column=8, sticky="w", pady=(8, 0))
         f_leg.columnconfigure(10, weight=1)
     # status related 
-        f_status = ttk.LabelFrame(root, text="status Related", padding=12)
+        f_status = ttk.LabelFrame(root, text="Status Related", padding=12)
         f_status.pack(fill="x", pady=(12, 0))
         ttk.Button(f_status, text="R_status", command=self.send_r_status_command, width=12).grid(
             row=0, column=0, sticky="w"
@@ -671,15 +679,36 @@ class ModbusGuiApp:
         self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
         self.work_mode_spin.grid(
             row=1, column=4, padx=(8, 12), sticky="w")
-        f_status.columnconfigure(10, weight=1)
-    # history
-        hint = ttk.Label(
-            root,
-            text="Historical messages",
-            foreground="#020101",
+        #read Voltage, Current data which converted by PFC
+        ttk.Button(f_status, text="R_V_out", command=self.send_r_voltage_out_command, width=12).grid(
+            row=2, column=0, sticky="w"
         )
-        hint.pack(anchor="w", pady=(12, 0))
+        ttk.Label(f_status, text="V_out_100mV").grid(
+            row=2, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_voltage_out_r_var, width=22, state="readonly").grid(
+            row=2, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
 
+        ttk.Button(f_status, text="R_V_in", command=self.send_r_voltage_in_command, width=12).grid(
+            row=2, column=3, sticky="w"
+        )
+        ttk.Label(f_status, text="C_in_100mV").grid(
+            row=2, column=4, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_voltage_in_r_var, width=18, state="readonly").grid(
+            row=2, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Button(f_status, text="R_C_in", command=self.send_r_current_in_command, width=12).grid(
+            row=2, column=6, sticky="w"
+        )
+        ttk.Label(f_status, text="C_in_10mA").grid(
+            row=2, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=18, state="readonly").grid(
+            row=2, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )       
+
+
+        f_status.columnconfigure(10, weight=1)
+        
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         self.port_combo["values"] = ports
@@ -1011,6 +1040,46 @@ class ModbusGuiApp:
                 daemon=True,
             ).start()
             time.sleep(0.2)
+    def send_r_voltage_out_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Output_Voltage)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_voltage_out sent", self._handle_voltage_out_read_response),
+            daemon=True,
+        ).start()
+    def send_r_voltage_in_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Input_Voltage)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_voltage_in sent", self._handle_voltage_in_read_response),
+            daemon=True,
+        ).start()
+    def send_r_current_in_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Input_Current)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_current_in sent", self._handle_current_in_read_response),
+            daemon=True,
+        ).start()
+        
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -1054,8 +1123,23 @@ class ModbusGuiApp:
     def _handle_cla_heartbeat_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u32_cla_heartbeat = parse_cla_heartbeat_read_response(response)
+        u32_cla_heartbeat = parse_u32_read_response(response)
         self.root.after(0, lambda: self.response_cla_heartbeat_r_u32_var.set(u32_cla_heartbeat))
+    def _handle_voltage_out_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_read_response(response)
+        self.root.after(0, lambda: self.response_voltage_out_r_var.set(u16))
+    def _handle_voltage_in_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_read_response(response)
+        self.root.after(0, lambda: self.response_voltage_in_r_var.set(u16))        
+    def _handle_current_in_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_read_response(response)
+        self.root.after(0, lambda: self.response_current_in_r_var.set(u16))
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
