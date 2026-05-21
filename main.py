@@ -31,6 +31,10 @@ Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
 Read_Addr_Output_Voltage = "03 03 00 5F 00 02"
 Read_Addr_Input_Voltage = "03 03 00 60 00 02"
 Read_Addr_Input_Current = "03 03 00 62 00 02"
+Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
+Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
+Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
+
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -298,6 +302,11 @@ def parse_u16_read_response(data: bytes) -> tuple[str, str]:
         return "N/A", "N/A"
     u16 = data[6]<<8 | data[7]
     return u16
+def parse_u16_index_read_response(data: bytes, idx: int) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    u16 = data[idx]<<8 | data[idx+1]
+    return u16
 
 def parse_u32_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+4:
@@ -372,6 +381,9 @@ class ModbusGuiApp:
         self.response_voltage_in_r_var = tk.StringVar(value="")
         self.response_current_in_r_var = tk.StringVar(value="")
 
+        self.response_voltage_over_r_var = tk.StringVar(value="")
+        self.response_current_over_r_var = tk.StringVar(value="")
+        self.response_temperature_over_r_var = tk.StringVar(value="")
         
 
         self._build_ui()
@@ -705,9 +717,37 @@ class ModbusGuiApp:
         ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=18, state="readonly").grid(
             row=2, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )       
-
-
         f_status.columnconfigure(10, weight=1)
+
+    # Protect related 
+        f_Protect = ttk.LabelFrame(root, text="Protect Related", padding=12)
+        f_Protect.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_Protect, text="R_V_Over", command=self.send_r_voltage_over_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_Protect, text="V_over_1V").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_Protect, textvariable=self.response_voltage_over_r_var, width=22, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+
+        ttk.Button(f_Protect, text="R_C_Over", command=self.send_r_current_over_command, width=12).grid(
+            row=0, column=3, sticky="w"
+        )
+        ttk.Label(f_Protect, text="C_over_1A").grid(
+            row=0, column=4, sticky="w", pady=(8, 0))
+        ttk.Entry(f_Protect, textvariable=self.response_current_over_r_var, width=18, state="readonly").grid(
+            row=0, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Button(f_Protect, text="R_T_over", command=self.send_r_temperature_over_command, width=12).grid(
+            row=0, column=6, sticky="w"
+        )
+        ttk.Label(f_Protect, text="T_over_0.1deg").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_Protect, textvariable=self.response_temperature_over_r_var, width=18, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        f_Protect.columnconfigure(10, weight=1)
         
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
@@ -1079,7 +1119,45 @@ class ModbusGuiApp:
             args=(frame, "R_current_in sent", self._handle_current_in_read_response),
             daemon=True,
         ).start()
-        
+    def send_r_voltage_over_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Output_Volt_Over_Setting)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_volt_out sent", self._handle_voltage_over_read_response),
+            daemon=True,
+        ).start()
+    def send_r_current_over_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Output_Curr_Over_Setting)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_volt_out sent", self._handle_current_over_read_response),
+            daemon=True,
+        ).start()
+    def send_r_temperature_over_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Temperature_Over_Setting)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_volt_out sent", self._handle_temperature_over_read_response),
+            daemon=True,
+        ).start()
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -1140,6 +1218,23 @@ class ModbusGuiApp:
         debug_print_rx(response)
         u16 = parse_u16_read_response(response)
         self.root.after(0, lambda: self.response_current_in_r_var.set(u16))
+
+    def _handle_voltage_over_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_index_read_response(response, 8)
+        self.root.after(0, lambda: self.response_voltage_over_r_var.set(u16))
+    def _handle_current_over_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_index_read_response(response, 8)
+        self.root.after(0, lambda: self.response_current_over_r_var.set(u16))
+    def _handle_temperature_over_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16 = parse_u16_index_read_response(response, 8)
+        self.root.after(0, lambda: self.response_temperature_over_r_var.set(u16))
+
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
