@@ -12,6 +12,7 @@ from serial.tools import list_ports
 destinate_device_options = [0x03, 0x04, 0x00]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Current = "03 03 00 61 00 06"
+Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
 Read_Addr_PWM_duty = "03 03 00 25 00 01"
 Write_Addr_PWM_duty = "03 06 04 0C 00 02 00 00"
 Read_Addr_ADC1 = "03 03 00 0C 00 0A"
@@ -173,7 +174,7 @@ def format_hex(data: bytes) -> str:
     return " ".join(f"{byte:02X}" for byte in data)
 
 def parse_version_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 10:
+    if len(data) < 6+4:
         return "N/A", "N/A"
     version_byte0 = str(data[9])
     version_byte1 = str(data[8])
@@ -181,7 +182,7 @@ def parse_version_read_response(data: bytes) -> tuple[str, str]:
     version_byte3 = str(data[6])
     return version_byte0, version_byte1, version_byte2, version_byte3
 def parse_current_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 12:
+    if len(data) < 6+6:
         return "N/A", "N/A"
 
     float_bytes = data[6:10]
@@ -189,6 +190,11 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
     current_ref = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
     current_cmd = str(data[11])
     return current_ref, current_cmd
+def parse_cla_heartbeat_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    u32 = data[6]<<24 |data[7]<<16 |data[8]<<8 | data[9]
+    return u32
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
         return "N/A", "N/A"
@@ -315,6 +321,7 @@ class ModbusGuiApp:
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_current_w_var = tk.StringVar(value="0")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
+        self.response_cla_heartbeat_r_u32_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
         self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FAL_duty_r_var = tk.StringVar(value="")
@@ -412,6 +419,15 @@ class ModbusGuiApp:
             row=0, column=3, sticky="w", pady=(8, 0))
         ttk.Entry(f_current, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
             row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        # get CLA heartbeat
+        ttk.Button(f_current, text="R_CLA_heartbeat", command=self.send_r_cla_heartbeat_command, width=12).grid(
+            row=0, column=5, sticky="w"
+        )
+        ttk.Label(f_current, text="test_cla_heartbeat").grid(
+            row=0, column=6, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current, textvariable=self.response_cla_heartbeat_r_u32_var, width=18, state="readonly").grid(
+            row=0, column=7, padx=(12, 8), pady=(8, 0), sticky="w"
         )
         # set current
         ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
@@ -790,6 +806,20 @@ class ModbusGuiApp:
             args=(frame, "R_current sent", self._handle_current_read_response),
             daemon=True,
         ).start()
+    def send_r_cla_heartbeat_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Read_Addr_CLA_heartbeat)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_current sent", self._handle_cla_heartbeat_read_response),
+            daemon=True,
+        ).start()
     def send_r_pwm_duty_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1021,6 +1051,11 @@ class ModbusGuiApp:
         float_value, current_cmd = parse_current_read_response(response)
         self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
         self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
+    def _handle_cla_heartbeat_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u32_cla_heartbeat = parse_cla_heartbeat_read_response(response)
+        self.root.after(0, lambda: self.response_cla_heartbeat_r_u32_var.set(u32_cla_heartbeat))
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
