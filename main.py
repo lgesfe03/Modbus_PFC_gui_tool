@@ -68,7 +68,7 @@ FAULT_MASKS = {
     "PFC_VAC_UVP":      0x00001000,# Bit 12
     "FAU_14":           0x00002000,# Bit 13
     "FAU_15":           0x00004000,# Bit 14
-    "FAU_16":           0x00008000,# Bit 15
+    "PFC_VBUS_UVP":     0x00008000,# Bit 15
 }
 
 ERROR_MASK = {
