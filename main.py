@@ -390,10 +390,10 @@ class ModbusGuiApp:
         self.refresh_ports()
 
     def _build_ui(self) -> None:
-        root = ttk.Frame(self.root, padding=12)
-        root.pack(fill="both", expand=True)
+        outer_root = ttk.Frame(self.root, padding=12)
+        outer_root.pack(fill="both", expand=True)
 
-        top = ttk.LabelFrame(root, text="Connection", padding=12)
+        top = ttk.LabelFrame(outer_root, text="Connection", padding=12)
         top.pack(fill="x")
 
         ttk.Label(top, text="COM Port").grid(row=0, column=0, sticky="w")
@@ -412,6 +412,44 @@ class ModbusGuiApp:
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
             row=1, column=0, columnspan=5, sticky="w", pady=(10, 0)
         )
+
+        scroll_canvas = tk.Canvas(outer_root, highlightthickness=0, borderwidth=0)
+        scroll_bar = ttk.Scrollbar(outer_root, orient="vertical", command=scroll_canvas.yview)
+        scroll_canvas.configure(yscrollcommand=scroll_bar.set)
+        scroll_canvas.pack(side="left", fill="both", expand=True, pady=(12, 0))
+        scroll_bar.pack(side="right", fill="y", pady=(12, 0))
+
+        scroll_content = ttk.Frame(scroll_canvas)
+        content_window = scroll_canvas.create_window((0, 0), window=scroll_content, anchor="nw")
+
+        def _update_scrollregion(_event=None) -> None:
+            scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
+
+        def _sync_width(event) -> None:
+            scroll_canvas.itemconfigure(content_window, width=event.width)
+
+        def _on_mousewheel(event) -> str:
+            delta = event.delta
+            if delta == 0:
+                return "break"
+            scroll_canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+            return "break"
+
+        def _on_mousewheel_up(_event) -> str:
+            scroll_canvas.yview_scroll(-1, "units")
+            return "break"
+
+        def _on_mousewheel_down(_event) -> str:
+            scroll_canvas.yview_scroll(1, "units")
+            return "break"
+
+        scroll_content.bind("<Configure>", _update_scrollregion)
+        scroll_canvas.bind("<Configure>", _sync_width)
+        scroll_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        scroll_canvas.bind_all("<Button-4>", _on_mousewheel_up)
+        scroll_canvas.bind_all("<Button-5>", _on_mousewheel_down)
+
+        root = scroll_content
     # get version
         f_get_version = ttk.LabelFrame(root, text="FW_version", padding=12)
         f_get_version.pack(fill="x", pady=(12, 0))
