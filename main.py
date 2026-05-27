@@ -35,6 +35,10 @@ Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
 Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
 Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 
+# Input limit
+INPUT_CURRENT_MIN = 0
+INPUT_CURRENT_MAX = 50
+
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -491,7 +495,7 @@ class ModbusGuiApp:
         ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
-        self.current_spin = ttk.Spinbox(f_current, from_=0, to=255, textvariable=self.input_current_w_var, width=10)
+        self.current_spin = ttk.Spinbox(f_current, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
         self.current_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
         f_current.columnconfigure(10, weight=1)
@@ -855,11 +859,11 @@ class ModbusGuiApp:
         try:
             current_value = int(self.input_current_w_var.get().strip())
         except ValueError:
-            messagebox.showwarning("Invalid value", "must be an integer between 0 and 255.")
+            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_CURRENT_MIN} and {INPUT_CURRENT_MAX}.")
             return
 
-        if not 0 <= current_value <= 255:
-            messagebox.showwarning("Invalid value", "must be an integer between 0 and 255.")
+        if not INPUT_CURRENT_MIN <= current_value <= INPUT_CURRENT_MAX:
+            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_CURRENT_MIN} and {INPUT_CURRENT_MAX}.")
             return
 
         request = bytearray.fromhex(Write_Addr_Current)
