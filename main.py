@@ -70,7 +70,7 @@ FAULT_MASKS = {
     "PFC_OTP_3":        0x00000400,# Bit 10
     "PFC_OTP_4":        0x00000800,# Bit 11
     "PFC_VAC_UVP":      0x00001000,# Bit 12
-    "FAU_14":           0x00002000,# Bit 13
+    "PFC_VBUS_SW_OVP":  0x00002000,# Bit 13
     "FAU_15":           0x00004000,# Bit 14
     "PFC_VBUS_UVP":     0x00008000,# Bit 15
 }
