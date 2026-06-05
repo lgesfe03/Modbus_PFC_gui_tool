@@ -746,68 +746,62 @@ class ModbusGuiApp:
     # status related 
         f_status = ttk.LabelFrame(root, text="Status Related", padding=12)
         f_status.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_status, text="R_status", command=self.send_r_status_command, width=12).grid(
+        ttk.Button(f_status, text="R_FAULT", command=self.send_r_fault_code_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_status, text="FAULT_CODE").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=22, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_status, text="ERROR_CODE").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_Error_Code_r_var, width=18, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+
+        ttk.Button(f_status, text="R_ERROR", command=self.send_r_error_code_command, width=12).grid(
+            row=0, column=2, sticky="w"
         )
-        ttk.Label(f_status, text="WARNING_CODE").grid(
-            row=0, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_Warning_Code_r_var, width=18, state="readonly").grid(
-            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
+        ttk.Entry(f_status, textvariable=self.response_Error_Code_r_var, width=12, state="readonly").grid(
+            row=0, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_status, text="Working_Mode").grid(
-            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Button(f_status, text="R_WARNING", command=self.send_r_warning_code_command, width=12).grid(
+            row=0, column=4, sticky="w"
+        )
+        ttk.Entry(f_status, textvariable=self.response_Warning_Code_r_var, width=12, state="readonly").grid(
+            row=0, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Button(f_status, text="R_Work_mode", command=self.send_r_working_code_command, width=12).grid(
+            row=1, column=0, sticky="w"
+        )
         ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=20, state="readonly").grid(
-            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        #write protect reset
-        ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=12).grid(
-            row=1, column=0, sticky="w")
-        ttk.Label(f_status, text="Protect_reset").grid(
-            row=1, column=1, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
-            row=1, column=2, sticky="w", pady=(8, 0))
         #write working mode
         ttk.Button(f_status, text="W_work_mode", command=self.send_w_working_mode_command, width=12).grid(
-            row=1, column=3, sticky="w"
+            row=1, column=2, sticky="w"
         )
         self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
         self.work_mode_spin.grid(
-            row=1, column=4, padx=(8, 12), sticky="w")
+            row=1, column=3, padx=(8, 12), sticky="w")
+        #write protect reset
+        ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=12).grid(
+            row=1, column=4, sticky="w")
+        ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
+            row=1, column=5, sticky="w", pady=(8, 0))
         #read Voltage, Current data which converted by PFC
-        ttk.Button(f_status, text="R_V_out", command=self.send_r_voltage_out_command, width=12).grid(
+        ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=12).grid(
             row=2, column=0, sticky="w"
         )
-        ttk.Label(f_status, text="V_out_100mV").grid(
-            row=2, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_voltage_out_r_var, width=22, state="readonly").grid(
-            row=2, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        ttk.Entry(f_status, textvariable=self.response_voltage_out_r_var, width=12, state="readonly").grid(
+            row=2, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
-        ttk.Button(f_status, text="R_V_in", command=self.send_r_voltage_in_command, width=12).grid(
-            row=2, column=3, sticky="w"
+        ttk.Button(f_status, text="R_V_in_100mV", command=self.send_r_voltage_in_command, width=12).grid(
+            row=2, column=2, sticky="w"
         )
-        ttk.Label(f_status, text="C_in_100mV").grid(
-            row=2, column=4, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_voltage_in_r_var, width=18, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_voltage_in_r_var, width=12, state="readonly").grid(
+            row=2, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Button(f_status, text="R_C_in_10mA", command=self.send_r_current_in_command, width=12).grid(
+            row=2, column=4, sticky="w"
+        )
+        ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=12, state="readonly").grid(
             row=2, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Button(f_status, text="R_C_in", command=self.send_r_current_in_command, width=12).grid(
-            row=2, column=6, sticky="w"
-        )
-        ttk.Label(f_status, text="C_in_10mA").grid(
-            row=2, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=18, state="readonly").grid(
-            row=2, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )       
         f_status.columnconfigure(10, weight=1)
 
@@ -1147,6 +1141,62 @@ class ModbusGuiApp:
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "W_working_mode sent", self._handle_working_mode_write_response),
+            daemon=True,
+        ).start()
+    def send_r_fault_code_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_status_fault_mode)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_fault_code sent", self._handle_fault_code_read_response),
+            daemon=True,
+        ).start()
+    def send_r_error_code_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_status_error_mode)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_fault_code sent", self._handle_error_code_read_response),
+            daemon=True,
+        ).start()
+    def send_r_warning_code_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_status_warning_mode)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_fault_code sent", self._handle_warning_code_read_response),
+            daemon=True,
+        ).start()
+    def send_r_working_code_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_status_working_mode)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_fault_code sent", self._handle_workingmode_read_response),
             daemon=True,
         ).start()
     def send_r_status_command(self) -> None:
