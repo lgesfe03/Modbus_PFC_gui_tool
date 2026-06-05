@@ -37,7 +37,7 @@ Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 
 # Input limit
 INPUT_CURRENT_MIN = 0
-INPUT_CURRENT_MAX = 50
+INPUT_CURRENT_MAX = 130
 
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
@@ -334,6 +334,12 @@ class ModbusGuiApp:
         self.port_var = tk.StringVar()
         self.device_byte0_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Disconnected")
+        self.variable_init()
+
+        self._build_ui()
+        self.refresh_ports()
+
+    def variable_init(self) -> None:
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_current_w_var = tk.StringVar(value="0")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
@@ -344,7 +350,6 @@ class ModbusGuiApp:
         self.response_pwm_FBH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBL_duty_r_var = tk.StringVar(value="")
         self.input_pwm_duty_w_var = tk.StringVar(value="0")
-
 
         self.response_adc1_v165_r_var = tk.StringVar(value="")
         self.response_adc1_vbus_r_var = tk.StringVar(value="")
@@ -388,11 +393,56 @@ class ModbusGuiApp:
         self.response_voltage_over_r_var = tk.StringVar(value="")
         self.response_current_over_r_var = tk.StringVar(value="")
         self.response_temperature_over_r_var = tk.StringVar(value="")
+    def variable_reset(self) -> None:
+        self.response_fw_version_read_all_var.set("")
+        # self.input_current_w_var.set("")
+        self.response_current_r_float_var.set("")
+        self.response_cla_heartbeat_r_u32_var.set("")
+        self.response_current_r_cmd_var.set("")
+        self.response_pwm_FAH_duty_r_var.set("")
+        self.response_pwm_FAL_duty_r_var.set("")
+        self.response_pwm_FBH_duty_r_var.set("")
+        self.response_pwm_FBL_duty_r_var.set("")
+        # self.input_pwm_duty_w_var.set("0")
+        self.response_adc1_v165_r_var.set("")
+        self.response_adc1_vbus_r_var.set("")
+        self.response_adc1_il1_r_var.set("")
+        self.response_adc1_il2_r_var.set("")
+        self.response_adc1_vac_r_var.set("")
+        self.response_adc2_PFC_S_TEMP_r_var.set("")
+        self.response_adc2_LLC_TEMP_r_var.set("")
+        self.response_adc2_Inlet_TEMP_r_var.set("")
+        self.response_adc2_PFC_F_TEMP_r_var.set("")
+        self.response_gpio_Fan1_RPM_r_var.set("")
+        self.response_gpio_DI_LLC_r_var.set("")
+        self.response_gpio_DO_RELAY_r_var.set("")
+        self.response_gpio_DO_AC_LOSS_r_var.set("")
+        self.response_gpio_DO_NotifyLLC_r_var.set("")
+        # self.gpio_do_relay_w_var.set(0)
+        # self.gpio_do_ac_loss_w_var.set(0)
+        # self.gpio_do_notifyllc_w_var.set(0)
+        self.response_leg_HFLegA_EN_r_var.set("")
+        self.response_leg_HFLegB_EN_r_var.set("")
+        self.response_leg_OPL_LFLeg_EN_r_var.set("")
+        self.response_leg_OPL_HFLeg_SR_EN_r_var.set("")
+        # self.leg_HFLegA_EN_w_var.set(0)
+        # self.leg_HFLegB_EN_w_var.set(0)
+        # self.leg_OPL_LFLeg_EN_w_var.set(0)
+        # self.leg_OPL_HFLeg_SR_EN_w_var.set(0)
+        self.response_Fault_Code_r_var.set("")
+        self.response_Error_Code_r_var.set("")
+        self.response_Warning_Code_r_var.set("")
+        self.response_Working_Mode_r_var.set("")
+        # self.input_protect_reset_w_var.set(0)
+        # self.input_working_mode_w_var.set("0")
+        self.response_voltage_out_r_var.set("")
+        self.response_voltage_in_r_var.set("")
+        self.response_current_in_r_var.set("")
         
-
-        self._build_ui()
-        self.refresh_ports()
-
+        self.response_voltage_over_r_var.set("")
+        self.response_current_over_r_var.set("")
+        self.response_temperature_over_r_var.set("")
+        
     def _build_ui(self) -> None:
         outer_root = ttk.Frame(self.root, padding=12)
         outer_root.pack(fill="both", expand=True)
@@ -412,7 +462,7 @@ class ModbusGuiApp:
         self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22, values=destinate_device_options)
         self.device_combo.current(0)
         self.device_combo.grid(row=0, column=6, padx=(8, 12), sticky="w")
-
+        ttk.Button(top, text="ClearMsg", command=self.clear_messages).grid(row=0, column=7)
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
             row=1, column=0, columnspan=5, sticky="w", pady=(10, 0)
         )
@@ -472,7 +522,7 @@ class ModbusGuiApp:
         ttk.Button(f_current, text="R_current", command=self.send_r_current_command, width=12).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Label(f_current, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+        ttk.Label(f_current, text="TTPLPFC_ac_cur_ref_pu(lab5)").grid(
             row=0, column=1, sticky="w", pady=(8, 0))
         ttk.Entry(f_current, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
             row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
@@ -835,6 +885,8 @@ class ModbusGuiApp:
                 self.status_var.set("Disconnected")
         else:
             self.serial_port = None
+    def clear_messages(self) -> None:
+        self.variable_reset()
     def fill_bytes0_device(self, request: bytearray) -> None:
         request[0] = int(self.device_combo.get())
     def send_r_version_command(self) -> None:
