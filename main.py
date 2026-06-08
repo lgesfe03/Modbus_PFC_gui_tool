@@ -18,6 +18,7 @@ Write_Addr_PWM_duty = "03 06 04 0C 00 02 00 00"
 Read_Addr_ADC1 = "03 03 00 0C 00 0A"
 Read_Addr_ADC2 = "03 03 00 0D 00 08"
 Read_Addr_GPIO = "03 03 00 15 00 01"
+Read_Addr_system_status = "03 03 00 1C 00 05"
 Write_Addr_Current = "03 06 04 48 00 02 00 01"
 Write_Addr_GPIO = "03 06 03 FC 00 01 00"
 Read_Addr_Leg = "03 03 00 19 00 04"
@@ -292,6 +293,15 @@ def parse_gpio_read_response(data: bytes) -> tuple[str, str]:
     bit_DO_AC_LOSS = (data[6] >> 3) & 0x01
     bit_DO_NotifyLLC = (data[6] >> 4) & 0x01
     return str(bit_Fan1_RPM), str(bit_DI_LLC_PwrGood), str(bit_DO_RELAY), str(bit_DO_AC_LOSS), str(bit_DO_NotifyLLC)
+def parse_system_status_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+5:
+        return "N/A", "N/A"
+    system_status_relay = data[6]
+    system_status = data[7]
+    system_status_HwControlStatus  = data[8]
+    system_status_aux  = data[9]
+    system_status_NormalTripSource  = data[10]
+    return str(system_status_relay), str(system_status), str(system_status_HwControlStatus), str(system_status_aux), str(system_status_NormalTripSource)
 def parse_leg_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+4:
         return "N/A", "N/A"
@@ -340,6 +350,9 @@ class ModbusGuiApp:
         self.refresh_ports()
 
     def variable_init(self) -> None:
+        self.row_accumulate = 0
+        self.column_accumulate = 0
+
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_current_w_var = tk.StringVar(value="0")
         self.response_current_r_float_var = tk.StringVar(value="N/A")
@@ -370,6 +383,12 @@ class ModbusGuiApp:
         self.gpio_do_relay_w_var = tk.IntVar(value=0)
         self.gpio_do_ac_loss_w_var = tk.IntVar(value=0)
         self.gpio_do_notifyllc_w_var = tk.IntVar(value=0)
+
+        self.response_system_status_relay_r_var = tk.StringVar(value="")
+        self.response_system_system_status_r_var = tk.StringVar(value="")
+        self.response_system_status_HwControlStatus_r_var = tk.StringVar(value="")
+        self.response_system_status_aux_r_var = tk.StringVar(value="")
+        self.response_system_status_NormalTripSource_r_var = tk.StringVar(value="")
 
         self.response_leg_HFLegA_EN_r_var = tk.StringVar(value="")
         self.response_leg_HFLegB_EN_r_var = tk.StringVar(value="")
@@ -421,6 +440,11 @@ class ModbusGuiApp:
         # self.gpio_do_relay_w_var.set(0)
         # self.gpio_do_ac_loss_w_var.set(0)
         # self.gpio_do_notifyllc_w_var.set(0)
+        self.response_system_status_relay_r_var.set("")
+        self.response_system_system_status_r_var.set("")
+        self.response_system_status_HwControlStatus_r_var.set("")
+        self.response_system_status_aux_r_var.set("")
+        self.response_system_status_NormalTripSource_r_var.set("")
         self.response_leg_HFLegA_EN_r_var.set("")
         self.response_leg_HFLegB_EN_r_var.set("")
         self.response_leg_OPL_LFLeg_EN_r_var.set("")
@@ -442,7 +466,19 @@ class ModbusGuiApp:
         self.response_voltage_over_r_var.set("")
         self.response_current_over_r_var.set("")
         self.response_temperature_over_r_var.set("")
-        
+
+    def row_accumulator_add(self) -> None:
+        self.row_accumulate += 1
+    def row_accumulator_get(self) -> None:
+        return self.row_accumulate
+    def row_accumulator_clear(self) -> None:
+        self.row_accumulate = 0
+    def column_accumulator_get(self) -> None:
+        self.column_accumulate += 1
+        return self.column_accumulate - 1
+    def column_accumulator_clear(self) -> None:
+        self.column_accumulate = 0
+
     def _build_ui(self) -> None:
         outer_root = ttk.Frame(self.root, padding=12)
         outer_root.pack(fill="both", expand=True)
@@ -672,67 +708,106 @@ class ModbusGuiApp:
         ttk.Checkbutton(f_gpio,variable=self.gpio_do_relay_w_var,onvalue=1,offvalue=0,).grid(
             row=1, column=6, sticky="w", pady=(8, 0))
         f_gpio.columnconfigure(10, weight=1)
-    # status related 
+    # status related
         f_status = ttk.LabelFrame(root, text="Status Related", padding=12)
         f_status.pack(fill="x", pady=(12, 0))
+        self.row_accumulator_clear()
+        self.column_accumulator_clear()
         ttk.Button(f_status, text="R_FAULT", command=self.send_r_fault_code_command, width=12).grid(
-            row=0, column=0, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=22, state="readonly").grid(
-            row=0, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         ttk.Button(f_status, text="R_ERROR", command=self.send_r_error_code_command, width=12).grid(
-            row=0, column=2, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Error_Code_r_var, width=12, state="readonly").grid(
-            row=0, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_status, text="R_WARNING", command=self.send_r_warning_code_command, width=12).grid(
-            row=0, column=4, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Warning_Code_r_var, width=12, state="readonly").grid(
-            row=0, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
+
+        self.column_accumulator_clear()
+        self.row_accumulator_add()
+        ttk.Button(f_status, text="R_SystemStatus", command=self.send_r_system_status_command, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Label(f_status, text="Relay").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=12, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="system_system_status").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_system_status_r_var, width=12, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )        
+        ttk.Label(f_status, text="HwControlStatus").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_HwControlStatus_r_var, width=12, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="aux").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_aux_r_var, width=12, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_status, text="NormalTripSource").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_NormalTripSource_r_var, width=12, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+
+        self.column_accumulator_clear()
+        self.row_accumulator_add()
         ttk.Button(f_status, text="R_Work_mode", command=self.send_r_working_code_command, width=14).grid(
-            row=1, column=0, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=20, state="readonly").grid(
-            row=1, column=1, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         #write working mode
         ttk.Button(f_status, text="W_Work_mode", command=self.send_w_working_mode_command, width=12).grid(
-            row=1, column=2, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
         self.work_mode_spin.grid(
-            row=1, column=3, padx=(8, 12), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
         #write protect reset
         ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=14).grid(
-            row=1, column=4, sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w")
         ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
-            row=1, column=5, sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        
+        self.column_accumulator_clear()
+        self.row_accumulator_add()
         #read Voltage, Current data which converted by PFC
         ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=12).grid(
-            row=2, column=0, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_voltage_out_r_var, width=12, state="readonly").grid(
-            row=2, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         ttk.Button(f_status, text="R_V_in_100mV", command=self.send_r_voltage_in_command, width=14).grid(
-            row=2, column=2, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_voltage_in_r_var, width=12, state="readonly").grid(
-            row=2, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_status, text="R_C_in_10mA", command=self.send_r_current_in_command, width=12).grid(
-            row=2, column=4, sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=12, state="readonly").grid(
-            row=2, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )       
-        f_status.columnconfigure(10, weight=1)
+        f_status.columnconfigure(12, weight=1)
 
     # Protect related 
         f_Protect = ttk.LabelFrame(root, text="Protect Related", padding=12)
@@ -757,7 +832,7 @@ class ModbusGuiApp:
             row=0, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_Protect.columnconfigure(10, weight=1)
-    # Tab Lab
+    # Tab Lab ###############################
         root = tab_lab
         # PWM duty related
         f_pwm_duty = ttk.LabelFrame(root, text="PWM related", padding=12)
@@ -1068,7 +1143,21 @@ class ModbusGuiApp:
             args=(frame, "W_GPIO sent", self._handle_gpio_write_response),
             daemon=True,
         ).start()
-    
+    def send_r_system_status_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Read_Addr_system_status)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_GPIO sent", self._handle_system_status_read_response),
+            daemon=True,
+        ).start()
     def send_r_leg_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1425,7 +1514,15 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_gpio_DO_RELAY_r_var.set(DO_RELAY))
         self.root.after(0, lambda: self.response_gpio_DO_AC_LOSS_r_var.set(DO_AC_LOSS))
         self.root.after(0, lambda: self.response_gpio_DO_NotifyLLC_r_var.set(DO_NotifyLLC))
-
+    def _handle_system_status_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        system_status_relay, system_status, system_status_HwControlStatus, system_status_aux, system_status_NormalTripSource = parse_system_status_read_response(response)
+        debug_print_rx(response)
+        self.root.after(0, lambda: self.response_system_status_relay_r_var.set(system_status_relay))
+        self.root.after(0, lambda: self.response_system_system_status_r_var.set(system_status))
+        self.root.after(0, lambda: self.response_system_status_HwControlStatus_r_var.set(system_status_HwControlStatus))
+        self.root.after(0, lambda: self.response_system_status_aux_r_var.set(system_status_aux))
+        self.root.after(0, lambda: self.response_system_status_NormalTripSource_r_var.set(system_status_NormalTripSource))
     def _handle_gpio_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
