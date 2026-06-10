@@ -555,50 +555,54 @@ class ModbusGuiApp:
 
         root = scroll_content
     # get version
+        self.row_accumulator_clear()
+        self.column_accumulator_clear()
         f_get_version = ttk.LabelFrame(root, text="FW_version", padding=12)
         f_get_version.pack(fill="x", pady=(12, 0))
         ttk.Button(f_get_version, text="R_Version", command=self.send_r_version_command, width=12).grid(
-            row=0, column=0, sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Label(f_get_version, text="Version.").grid(row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(f_get_version, text="Version.").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_all_var, width=18, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
-        )
-        f_get_version.columnconfigure(10, weight=1)
-    # current related
-        f_current = ttk.LabelFrame(root, text="Current Related", padding=12)
-        f_current.pack(fill="x", pady=(12, 0))        
-        # get current
-        ttk.Button(f_current, text="R_current", command=self.send_r_current_command, width=12).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Label(f_current, text="TTPLPFC_ac_cur_ref_pu(lab5)").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_current, text="current_cmd_from_modbus").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         # get CLA heartbeat
-        ttk.Button(f_current, text="R_CLA_heartbeat", command=self.send_r_cla_heartbeat_command, width=12).grid(
-            row=0, column=5, sticky="w"
+        ttk.Button(f_get_version, text="R_CLA_heartbeat", command=self.send_r_cla_heartbeat_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Label(f_current, text="test_cla_heartbeat").grid(
-            row=0, column=6, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current, textvariable=self.response_cla_heartbeat_r_u32_var, width=18, state="readonly").grid(
-            row=0, column=7, padx=(12, 8), pady=(8, 0), sticky="w"
+        ttk.Label(f_get_version, text="test_cla_heartbeat").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_get_version, textvariable=self.response_cla_heartbeat_r_u32_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        f_get_version.columnconfigure(10, weight=1)
+    # Lab5 Current related
+        self.column_accumulator_clear()
+        f_current_lab5 = ttk.LabelFrame(root, text="Lab5 Current", padding=12)
+        f_current_lab5.pack(fill="x", pady=(12, 0))        
+        # get current
+        ttk.Button(f_current_lab5, text="R_current", command=self.send_r_current_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu(lab5)").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="current_cmd_from_modbus").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
-        ttk.Button(f_current, text="W_current", command=self.send_w_current_command, width=12).grid(
+        ttk.Button(f_current_lab5, text="W_current", command=self.send_w_current_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
-        self.current_spin = ttk.Spinbox(f_current, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
+        self.current_spin = ttk.Spinbox(f_current_lab5, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
         self.current_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
-        f_current.columnconfigure(10, weight=1)
+        f_current_lab5.columnconfigure(10, weight=1)
     # get ADCs
         f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
         f_adc_r.pack(fill="x", pady=(12, 0))
@@ -834,42 +838,6 @@ class ModbusGuiApp:
         f_Protect.columnconfigure(10, weight=1)
     # Tab Lab ###############################
         root = tab_lab
-        # PWM duty related
-        f_pwm_duty = ttk.LabelFrame(root, text="PWM related", padding=12)
-        f_pwm_duty.pack(fill="x", pady=(12, 0))
-        #get pwm duty
-        ttk.Button(f_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Label(f_pwm_duty, text="PWM-FAH").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
-            row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_pwm_duty, text="PWM-FAL").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_pwm_duty, text="PWM-FBH").grid(
-            row=0, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
-            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_pwm_duty, text="PWM-FBL").grid(
-            row=0, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
-            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        #set pwm duty
-        ttk.Button(f_pwm_duty, text="W_PWM_duty", command=self.send_w_pwm_duty_command, width=12).grid(
-            row=1, column=0, sticky="w"
-        )
-        self.pwm_duty_spin = ttk.Spinbox(f_pwm_duty, from_=0, to=255, textvariable=self.input_pwm_duty_w_var, width=10)
-        self.pwm_duty_spin.grid(
-            row=1, column=1, padx=(8, 12), sticky="w")
-        
-        f_pwm_duty.columnconfigure(10, weight=1)
         # leg related 
         f_leg = ttk.LabelFrame(root, text="Leg Related", padding=12)
         f_leg.pack(fill="x", pady=(12, 0))
@@ -919,6 +887,69 @@ class ModbusGuiApp:
         ttk.Checkbutton(f_leg,variable=self.leg_OPL_HFLeg_SR_EN_w_var,onvalue=1,offvalue=0,).grid(
             row=1, column=8, sticky="w", pady=(8, 0))
         f_leg.columnconfigure(10, weight=1)
+
+        # PWM duty related
+        f_pwm_duty = ttk.LabelFrame(root, text="Lab3 PWM duty", padding=12)
+        f_pwm_duty.pack(fill="x", pady=(12, 0))
+        #get pwm duty
+        ttk.Button(f_pwm_duty, text="R_PWM duty", command=self.send_r_pwm_duty_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_pwm_duty, text="PWM-FAH").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAH_duty_r_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_pwm_duty, text="PWM-FAL").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FAL_duty_r_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_pwm_duty, text="PWM-FBH").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBH_duty_r_var, width=18, state="readonly").grid(
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_pwm_duty, text="PWM-FBL").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_pwm_duty, textvariable=self.response_pwm_FBL_duty_r_var, width=18, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        #set pwm duty
+        ttk.Button(f_pwm_duty, text="W_PWM_duty", command=self.send_w_pwm_duty_command, width=12).grid(
+            row=1, column=0, sticky="w"
+        )
+        self.pwm_duty_spin = ttk.Spinbox(f_pwm_duty, from_=0, to=255, textvariable=self.input_pwm_duty_w_var, width=10)
+        self.pwm_duty_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
+        
+        f_pwm_duty.columnconfigure(10, weight=1)
+        
+        # Lab4 Current related
+        f_current_lab4 = ttk.LabelFrame(root, text="Lab4 Current", padding=12)
+        f_current_lab4.pack(fill="x", pady=(12, 0))        
+        # get current
+        ttk.Button(f_current_lab4, text="R_current", command=self.send_r_current_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_current_lab4, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_current_lab4, text="current_cmd_from_modbus").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab4, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        # set current
+        ttk.Button(f_current_lab4, text="W_current", command=self.send_w_current_command, width=12).grid(
+            row=1, column=0, sticky="w"
+        )
+        self.current_spin = ttk.Spinbox(f_current_lab4, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
+        self.current_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
+        f_current_lab4.columnconfigure(10, weight=1)
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         self.port_combo["values"] = ports
