@@ -11,7 +11,8 @@ from serial.tools import list_ports
 # destinate_device_options = ['single PFC 03', 'ControlBoard 04', 'PSU 00']
 destinate_device_options = [0x03, 0x04, 0x00]
 Read_Addr_FW_version = "03 03 00 01 00 04"
-Read_Addr_Current = "03 03 00 61 00 06"
+Read_Addr_Output_Voltage = "03 03 00 61 00 10"
+Read_Addr_Output_Current = "03 03 00 61 00 10"
 Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
 Read_Addr_PWM_duty = "03 03 00 25 00 01"
 Write_Addr_PWM_duty = "03 06 04 0C 00 02 00 00"
@@ -19,7 +20,7 @@ Read_Addr_ADC1 = "03 03 00 0C 00 0A"
 Read_Addr_ADC2 = "03 03 00 0D 00 08"
 Read_Addr_GPIO = "03 03 00 15 00 01"
 Read_Addr_system_status = "03 03 00 1C 00 05"
-Write_Addr_Current = "03 06 04 48 00 02 00 01"
+Write_Addr_Output_Current = "03 06 04 48 00 02 00 01"
 Write_Addr_GPIO = "03 06 03 FC 00 01 00"
 Read_Addr_Leg = "03 03 00 19 00 04"
 Write_Addr_Leg = "03 06 04 00 00 04 00 00 00 00"
@@ -195,15 +196,15 @@ def parse_version_read_response(data: bytes) -> tuple[str, str]:
 def parse_current_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+6:
         return "N/A", "N/A"
-    float_bytes = data[6:10]
+    float_bytes = data[8:12]
     current_ref_value = struct.unpack(">f", float_bytes)[0]
     TTPLPFC_ac_cur_ref_pu = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    float_bytes = data[10:14]
+    float_bytes = data[12:16]
     current_ref_value = struct.unpack(">f", float_bytes)[0]
     TTPLPFC_ac_cur_ref_inst_pu  = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    current_cmd = str(data[15])
+    current_cmd = str(data[7])
     return TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
@@ -1045,7 +1046,7 @@ class ModbusGuiApp:
             messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_CURRENT_MIN} and {INPUT_CURRENT_MAX}.")
             return
 
-        request = bytearray.fromhex(Write_Addr_Current)
+        request = bytearray.fromhex(Write_Addr_Output_Current)
         self.fill_bytes0_device(request)
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
         request[7] = current_value
@@ -1087,7 +1088,7 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        request = bytearray.fromhex(Read_Addr_Current)
+        request = bytearray.fromhex(Read_Addr_Output_Current)
         self.fill_bytes0_device(request)
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
