@@ -195,12 +195,16 @@ def parse_version_read_response(data: bytes) -> tuple[str, str]:
 def parse_current_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+6:
         return "N/A", "N/A"
-
     float_bytes = data[6:10]
     current_ref_value = struct.unpack(">f", float_bytes)[0]
-    current_ref = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
-    current_cmd = str(data[11])
-    return current_ref, current_cmd
+    TTPLPFC_ac_cur_ref_pu = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
+
+    float_bytes = data[10:14]
+    current_ref_value = struct.unpack(">f", float_bytes)[0]
+    TTPLPFC_ac_cur_ref_inst_pu  = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
+
+    current_cmd = str(data[15])
+    return TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
         return "N/A", "N/A"
@@ -355,7 +359,8 @@ class ModbusGuiApp:
 
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_current_w_var = tk.StringVar(value="0")
-        self.response_current_r_float_var = tk.StringVar(value="N/A")
+        self.response_current_r_float1_var = tk.StringVar(value="N/A")
+        self.response_current_r_float2_var = tk.StringVar(value="N/A")
         self.response_cla_heartbeat_r_u32_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
         self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
@@ -415,7 +420,8 @@ class ModbusGuiApp:
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
         # self.input_current_w_var.set("")
-        self.response_current_r_float_var.set("")
+        self.response_current_r_float1_var.set("")
+        self.response_current_r_float2_var.set("")
         self.response_cla_heartbeat_r_u32_var.set("")
         self.response_current_r_cmd_var.set("")
         self.response_pwm_FAH_duty_r_var.set("")
@@ -583,19 +589,25 @@ class ModbusGuiApp:
         f_current_lab5.pack(fill="x", pady=(12, 0))        
         # get current
         ttk.Button(f_current_lab5, text="R_current", command=self.send_r_current_command, width=12).grid(
-            row=0, column=0, sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu(lab5)").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab5, text="current_cmd_from_modbus").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab5, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
+        self.column_accumulator_clear()
         ttk.Button(f_current_lab5, text="W_current", command=self.send_w_current_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
@@ -926,21 +938,27 @@ class ModbusGuiApp:
         f_pwm_duty.columnconfigure(10, weight=1)
         
         # Lab4 Current related
+        self.column_accumulator_clear()
         f_current_lab4 = ttk.LabelFrame(root, text="Lab4 Current", padding=12)
         f_current_lab4.pack(fill="x", pady=(12, 0))        
         # get current
         ttk.Button(f_current_lab4, text="R_current", command=self.send_r_current_command, width=12).grid(
-            row=0, column=0, sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Label(f_current_lab4, text="TTPLPFC_ac_cur_ref_pu").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab4, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float_var, width=18, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))        
+        ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab4, text="current_cmd_from_modbus").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab4, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
         ttk.Button(f_current_lab4, text="W_current", command=self.send_w_current_command, width=12).grid(
@@ -1468,8 +1486,9 @@ class ModbusGuiApp:
     def _handle_current_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        float_value, current_cmd = parse_current_read_response(response)
-        self.root.after(0, lambda: self.response_current_r_float_var.set(float_value))
+        TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd = parse_current_read_response(response)
+        self.root.after(0, lambda: self.response_current_r_float1_var.set(TTPLPFC_ac_cur_ref_pu))
+        self.root.after(0, lambda: self.response_current_r_float2_var.set(TTPLPFC_ac_cur_ref_inst_pu))
         self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
     def _handle_cla_heartbeat_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
