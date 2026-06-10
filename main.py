@@ -11,7 +11,6 @@ from serial.tools import list_ports
 # destinate_device_options = ['single PFC 03', 'ControlBoard 04', 'PSU 00']
 destinate_device_options = [0x03, 0x04, 0x00]
 Read_Addr_FW_version = "03 03 00 01 00 04"
-Read_Addr_Output_Voltage = "03 03 00 61 00 10"
 Read_Addr_Output_Current = "03 03 00 61 00 10"
 Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
 Read_Addr_PWM_duty = "03 03 00 25 00 01"
@@ -21,6 +20,7 @@ Read_Addr_ADC2 = "03 03 00 0D 00 08"
 Read_Addr_GPIO = "03 03 00 15 00 01"
 Read_Addr_system_status = "03 03 00 1C 00 05"
 Write_Addr_Output_Current = "03 06 04 48 00 02 00 01"
+Write_Addr_Output_Voltage = "03 06 04 46 00 02 00 01"
 Write_Addr_GPIO = "03 06 03 FC 00 01 00"
 Read_Addr_Leg = "03 03 00 19 00 04"
 Write_Addr_Leg = "03 06 04 00 00 04 00 00 00 00"
@@ -30,7 +30,7 @@ Read_Addr_status_warning_mode = "03 03 00 43 00 04"
 Read_Addr_status_working_mode = "03 03 00 45 00 01"
 Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
-Read_Addr_Output_Voltage = "03 03 00 5F 00 02"
+Read_Addr_Output_Voltage = "03 03 00 5F 00 10"
 Read_Addr_Input_Voltage = "03 03 00 60 00 02"
 Read_Addr_Input_Current = "03 03 00 62 00 02"
 Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
@@ -40,7 +40,8 @@ Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 # Input limit
 INPUT_CURRENT_MIN = 0
 INPUT_CURRENT_MAX = 130
-
+INPUT_VOLTAGE_MIN = 0
+INPUT_VOLTAGE_MAX = 4800
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -204,7 +205,7 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
     current_ref_value = struct.unpack(">f", float_bytes)[0]
     TTPLPFC_ac_cur_ref_inst_pu  = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    current_cmd = str(data[7])
+    current_cmd = str((data[6] << 8) + data[7])
     return TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
@@ -360,10 +361,14 @@ class ModbusGuiApp:
 
         self.response_fw_version_read_all_var = tk.StringVar(value="")
         self.input_current_w_var = tk.StringVar(value="0")
+        self.input_output_voltage_w_var = tk.StringVar(value="0")
         self.response_current_r_float1_var = tk.StringVar(value="N/A")
         self.response_current_r_float2_var = tk.StringVar(value="N/A")
+        self.response_output_voltage_r_float1_var = tk.StringVar(value="N/A")
+        self.response_output_voltage_r_float2_var = tk.StringVar(value="N/A")
         self.response_cla_heartbeat_r_u32_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
+        self.response_voltage_r_cmd_var = tk.StringVar(value="N/A")
         self.response_pwm_FAH_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FAL_duty_r_var = tk.StringVar(value="")
         self.response_pwm_FBH_duty_r_var = tk.StringVar(value="")
@@ -411,7 +416,6 @@ class ModbusGuiApp:
         self.response_Working_Mode_r_var = tk.StringVar(value="")
         self.input_protect_reset_w_var = tk.IntVar(value=0)
         self.input_working_mode_w_var = tk.StringVar(value="0")
-        self.response_voltage_out_r_var = tk.StringVar(value="")
         self.response_voltage_in_r_var = tk.StringVar(value="")
         self.response_current_in_r_var = tk.StringVar(value="")
 
@@ -423,8 +427,11 @@ class ModbusGuiApp:
         # self.input_current_w_var.set("")
         self.response_current_r_float1_var.set("")
         self.response_current_r_float2_var.set("")
+        self.response_output_voltage_r_float1_var.set("")
+        self.response_output_voltage_r_float2_var.set("")
         self.response_cla_heartbeat_r_u32_var.set("")
         self.response_current_r_cmd_var.set("")
+        self.response_voltage_r_cmd_var.set("")
         self.response_pwm_FAH_duty_r_var.set("")
         self.response_pwm_FAL_duty_r_var.set("")
         self.response_pwm_FBH_duty_r_var.set("")
@@ -466,7 +473,6 @@ class ModbusGuiApp:
         self.response_Working_Mode_r_var.set("")
         # self.input_protect_reset_w_var.set(0)
         # self.input_working_mode_w_var.set("0")
-        self.response_voltage_out_r_var.set("")
         self.response_voltage_in_r_var.set("")
         self.response_current_in_r_var.set("")
         
@@ -584,38 +590,38 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         f_get_version.columnconfigure(10, weight=1)
-    # Lab5 Current related
+    # Lab6 Voltage related
         self.column_accumulator_clear()
-        f_current_lab5 = ttk.LabelFrame(root, text="Lab5 Current", padding=12)
-        f_current_lab5.pack(fill="x", pady=(12, 0))        
-        # get current
-        ttk.Button(f_current_lab5, text="R_current", command=self.send_r_current_command, width=12).grid(
+        f_voltage_lab6 = ttk.LabelFrame(root, text="Lab6 Voltage", padding=12)
+        f_voltage_lab6.pack(fill="x", pady=(12, 0))        
+        # get voltage
+        ttk.Button(f_voltage_lab6, text="R_voltage", command=self.send_r_voltage_out_command, width=12).grid(
             row=0, column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu").grid(
+        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBusRef_pu").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_var, width=18, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=18, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_current_lab5, text="current_cmd_from_modbus").grid(
+        ttk.Label(f_voltage_lab6, text="voltage_cmd_from_modbus").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_voltage_r_cmd_var, width=18, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
-        # set current
+        # set voltage
         self.column_accumulator_clear()
-        ttk.Button(f_current_lab5, text="W_current", command=self.send_w_current_command, width=12).grid(
+        ttk.Button(f_voltage_lab6, text="W_voltage", command=self.send_w_output_voltage_command, width=12).grid(
             row=1, column=0, sticky="w"
         )
-        self.current_spin = ttk.Spinbox(f_current_lab5, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
-        self.current_spin.grid(
+        self.voltage_spin = ttk.Spinbox(f_voltage_lab6, from_=INPUT_VOLTAGE_MIN, to=INPUT_VOLTAGE_MAX, textvariable=self.input_output_voltage_w_var, width=10)
+        self.voltage_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
-        f_current_lab5.columnconfigure(10, weight=1)
+        f_voltage_lab6.columnconfigure(10, weight=1)
     # get ADCs
         f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
         f_adc_r.pack(fill="x", pady=(12, 0))
@@ -808,7 +814,7 @@ class ModbusGuiApp:
         ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=12).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Entry(f_status, textvariable=self.response_voltage_out_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_voltage_r_cmd_var, width=12, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
@@ -938,7 +944,7 @@ class ModbusGuiApp:
         
         f_pwm_duty.columnconfigure(10, weight=1)
         
-        # Lab4 Current related
+    # Lab4 Current related
         self.column_accumulator_clear()
         f_current_lab4 = ttk.LabelFrame(root, text="Lab4 Current", padding=12)
         f_current_lab4.pack(fill="x", pady=(12, 0))        
@@ -962,13 +968,45 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
-        ttk.Button(f_current_lab4, text="W_current", command=self.send_w_current_command, width=12).grid(
+        ttk.Button(f_current_lab4, text="W_TTPLPFC_ac_cur_ref_inst_pu", command=self.send_w_current_command, width=30).grid(
             row=1, column=0, sticky="w"
         )
         self.current_spin = ttk.Spinbox(f_current_lab4, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
         self.current_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
         f_current_lab4.columnconfigure(10, weight=1)
+    # Lab5 Current related
+        self.column_accumulator_clear()
+        f_current_lab5 = ttk.LabelFrame(root, text="Lab5 Current", padding=12)
+        f_current_lab5.pack(fill="x", pady=(12, 0))        
+        # get current
+        ttk.Button(f_current_lab5, text="R_current", command=self.send_r_current_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_current_lab5, text="current_cmd_from_modbus").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_current_lab5, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        # set current
+        self.column_accumulator_clear()
+        ttk.Button(f_current_lab5, text="W_TTPLPFC_ac_cur_ref_pu", command=self.send_w_current_command, width=30).grid(
+            row=1, column=0, sticky="w"
+        )
+        self.current_spin = ttk.Spinbox(f_current_lab5, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_current_w_var, width=10)
+        self.current_spin.grid(
+            row=1, column=1, padx=(8, 12), sticky="w")
+        f_current_lab5.columnconfigure(10, weight=1)
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         self.port_combo["values"] = ports
@@ -1057,6 +1095,34 @@ class ModbusGuiApp:
             args=(frame, "W_current sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
+    def send_w_output_voltage_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        try:
+            voltage_value = int(self.input_output_voltage_w_var.get().strip())
+        except ValueError:
+            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_VOLTAGE_MIN} and {INPUT_VOLTAGE_MAX}.")
+            return
+
+        if not INPUT_VOLTAGE_MIN <= voltage_value <= INPUT_VOLTAGE_MAX:
+            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_VOLTAGE_MIN} and {INPUT_VOLTAGE_MAX}.")
+            return
+
+        request = bytearray.fromhex(Write_Addr_Output_Voltage)
+        self.fill_bytes0_device(request)
+        # Fill the 8th byte (index 7) before appending CRC, per SetvoltageCmd[7].
+        request[6] = (voltage_value >> 8) & 0xFF
+        request[7] = voltage_value & 0xFF
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_voltage sent", self._handle_parse_voltage_write_response),
+            daemon=True,
+        ).start()
+
     def send_w_pwm_duty_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1481,6 +1547,9 @@ class ModbusGuiApp:
     def _handle_parse_current_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
+    def _handle_parse_voltage_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
     def _handle_parse_pwm_duty_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
@@ -1499,8 +1568,10 @@ class ModbusGuiApp:
     def _handle_voltage_out_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u16 = parse_u16_read_response(response)
-        self.root.after(0, lambda: self.response_voltage_out_r_var.set(u16))
+        float1, float2, u16_1 = parse_current_read_response(response)
+        self.root.after(0, lambda: self.response_output_voltage_r_float1_var.set(float1))
+        self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(float2))
+        self.root.after(0, lambda: self.response_voltage_r_cmd_var.set(u16_1))
     def _handle_voltage_in_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
