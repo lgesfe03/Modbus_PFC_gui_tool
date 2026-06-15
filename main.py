@@ -1017,6 +1017,7 @@ class ModbusGuiApp:
         f_current_lab5.columnconfigure(10, weight=1)
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
+        ports = sorted(ports)
         self.port_combo["values"] = ports
         if ports and self.port_var.get() not in ports:
             self.port_var.set(ports[0])
