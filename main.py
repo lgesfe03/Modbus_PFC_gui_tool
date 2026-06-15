@@ -8,7 +8,7 @@ from enum import Enum, auto
 import serial
 from serial.tools import list_ports
 
-DESTINATE_DEVICE_OPTIONS = [['Single PFC 0x03', 0x03], ['ControlBoard 0x04', 0x04], ['PSU 0x00', 0x00]]
+DESTINATE_DEVICE_OPTIONS = [['0x03 ControlBoard', 0x03], ['0x04 Single PFC', 0x04], ['0x00 PSU', 0x00]]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Output_Current = "03 03 00 61 00 10"
 Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
