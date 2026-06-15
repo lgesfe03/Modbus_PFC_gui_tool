@@ -8,8 +8,7 @@ from enum import Enum, auto
 import serial
 from serial.tools import list_ports
 
-# destinate_device_options = ['single PFC 03', 'ControlBoard 04', 'PSU 00']
-destinate_device_options = [0x03, 0x04, 0x00]
+DESTINATE_DEVICE_OPTIONS = [['Single PFC 0x03', 0x03], ['ControlBoard 0x04', 0x04], ['PSU 0x00', 0x00]]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Output_Current = "03 03 00 61 00 10"
 Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
@@ -517,9 +516,12 @@ class ModbusGuiApp:
         ttk.Button(top, text="Disconnect", command=self.disconnect_port).grid(row=0, column=4)
 
         ttk.Label(top, text="DeviceBytes0").grid(row=0, column=5, sticky="w")
-        self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22, values=destinate_device_options)
-        self.device_combo.current(0)
+        self.device_combo = ttk.Combobox(top, textvariable=self.device_byte0_var, state="readonly", width=22, values=[item[0] for item in DESTINATE_DEVICE_OPTIONS])
+        self.device_combo.current(0) # default select first item
         self.device_combo.grid(row=0, column=6, padx=(8, 12), sticky="w")
+        # self.device_combo.bind("<<ComboboxSelected>>", self.on_device_select)
+
+
         ttk.Button(top, text="ClearMsg", command=self.clear_messages).grid(row=0, column=7)
         ttk.Label(top, textvariable=self.status_var, foreground="#005f8d").grid(
             row=1, column=0, columnspan=5, sticky="w", pady=(10, 0)
@@ -1063,7 +1065,11 @@ class ModbusGuiApp:
     def clear_messages(self) -> None:
         self.variable_reset()
     def fill_bytes0_device(self, request: bytearray) -> None:
-        request[0] = int(self.device_combo.get())
+        value_selected = self.device_combo.get()
+        value_maps = {item[0]: item[1] for item in DESTINATE_DEVICE_OPTIONS}
+        value_maps_selected = value_maps.get(value_selected)
+
+        request[0] = int(value_maps_selected)
     def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
