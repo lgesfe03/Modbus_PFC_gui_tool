@@ -59,6 +59,14 @@ class _Working_Mode(Enum):
     A2D_TEST_INIT_MODE = auto()
     D2D_TEST_RUN_MODE = auto()
 
+class _Relay_Mode(Enum):
+    PFC_RELAY_OFF_MODE = 0
+    PFC_RELAY_READY_WAIT_MODE= auto()
+    PFC_RELAY_CLOSE_DELAY_MODE= auto()
+    PFC_RELAY_CLOSE_SETTLE_MODE= auto()
+    PFC_RELAY_ON_MODE= auto()
+    PFC_RELAY_OPENING_MODE= auto()
+    
 FAULT_MASKS = {
     "PFC_IL1_TZ_OCP":   0x00000001,  # Bit 0
     "PFC_IL1_SW_RCP":   0x00000002,  # Bit 1
@@ -395,7 +403,7 @@ class ModbusGuiApp:
         self.gpio_do_ac_loss_w_var = tk.IntVar(value=0)
         self.gpio_do_notifyllc_w_var = tk.IntVar(value=0)
 
-        self.response_system_status_relay_r_var = tk.StringVar(value="")
+        self.response_system_status_relay_r_var = tk.StringVar(value="Relay:")
         self.response_system_system_status_r_var = tk.StringVar(value="")
         self.response_system_status_HwControlStatus_r_var = tk.StringVar(value="")
         self.response_system_status_aux_r_var = tk.StringVar(value="")
@@ -454,7 +462,7 @@ class ModbusGuiApp:
         # self.gpio_do_relay_w_var.set(0)
         # self.gpio_do_ac_loss_w_var.set(0)
         # self.gpio_do_notifyllc_w_var.set(0)
-        self.response_system_status_relay_r_var.set("")
+        self.response_system_status_relay_r_var.set("Relay:")
         self.response_system_system_status_r_var.set("")
         self.response_system_status_HwControlStatus_r_var.set("")
         self.response_system_status_aux_r_var.set("")
@@ -739,7 +747,7 @@ class ModbusGuiApp:
         ttk.Button(f_status, text="R_FAULT", command=self.send_r_fault_code_command, width=12).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=22, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=26, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
@@ -761,9 +769,9 @@ class ModbusGuiApp:
         ttk.Button(f_status, text="R_SystemStatus", command=self.send_r_system_status_command, width=12).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Label(f_status, text="Relay").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=12, state="readonly").grid(
+        # ttk.Label(f_status, text="Relay").grid(
+        #     row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=26, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="system_system_status").grid(
@@ -1640,7 +1648,11 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         system_status_relay, system_status, system_status_HwControlStatus, system_status_aux, system_status_NormalTripSource = parse_system_status_read_response(response)
         debug_print_rx(response)
-        self.root.after(0, lambda: self.response_system_status_relay_r_var.set(system_status_relay))
+
+        int_system_status_relay = int(system_status_relay)
+        enum_relay_mode = _Relay_Mode(int_system_status_relay)
+        self.root.after(0, lambda: self.response_system_status_relay_r_var.set(f"{enum_relay_mode.name}({int_system_status_relay})"))
+
         self.root.after(0, lambda: self.response_system_system_status_r_var.set(system_status))
         self.root.after(0, lambda: self.response_system_status_HwControlStatus_r_var.set(system_status_HwControlStatus))
         self.root.after(0, lambda: self.response_system_status_aux_r_var.set(system_status_aux))
