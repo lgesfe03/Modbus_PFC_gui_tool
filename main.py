@@ -36,6 +36,9 @@ Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
 Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
 Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 
+# Constant
+FLOAT_ROUND = 2
+VBUS_MAX_VOLTAGE = 529.2375
 # Input limit
 INPUT_CURRENT_MIN = 0
 INPUT_CURRENT_MAX = 130
@@ -372,6 +375,7 @@ class ModbusGuiApp:
         self.response_current_r_float1_var = tk.StringVar(value="N/A")
         self.response_current_r_float2_var = tk.StringVar(value="N/A")
         self.response_output_voltage_r_float1_var = tk.StringVar(value="N/A")
+        self.response_output_voltage_r_float1_multiply529_var = tk.StringVar(value="N/A")
         self.response_output_voltage_r_float2_var = tk.StringVar(value="N/A")
         self.response_cla_heartbeat_r_u32_var = tk.StringVar(value="N/A")
         self.response_current_r_cmd_var = tk.StringVar(value="N/A")
@@ -435,6 +439,7 @@ class ModbusGuiApp:
         self.response_current_r_float1_var.set("")
         self.response_current_r_float2_var.set("")
         self.response_output_voltage_r_float1_var.set("")
+        self.response_output_voltage_r_float1_multiply529_var.set("")
         self.response_output_voltage_r_float2_var.set("")
         self.response_cla_heartbeat_r_u32_var.set("")
         self.response_current_r_cmd_var.set("")
@@ -610,17 +615,22 @@ class ModbusGuiApp:
         )
         ttk.Label(f_voltage_lab6, text="TTPLPFC_vBusRef_pu").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_var, width=12, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_voltage_lab6, text="vBusRef").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_multiply529_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="voltage_cmd_from_modbus").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_voltage_lab6, textvariable=self.response_voltage_r_cmd_var, width=18, state="readonly").grid(
+        ttk.Entry(f_voltage_lab6, textvariable=self.response_voltage_r_cmd_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set voltage
@@ -749,7 +759,7 @@ class ModbusGuiApp:
         ttk.Button(f_status, text="R_FAULT", command=self.send_r_fault_code_command, width=12).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
-        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=26, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=32, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
@@ -768,12 +778,12 @@ class ModbusGuiApp:
 
         self.column_accumulator_clear()
         self.row_accumulator_add()
-        ttk.Button(f_status, text="R_SystemStatus", command=self.send_r_system_status_command, width=12).grid(
+        ttk.Button(f_status, text="R_SystemStatus", command=self.send_r_system_status_command, width=14).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         # ttk.Label(f_status, text="Relay").grid(
         #     row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=26, state="readonly").grid(
+        ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=32, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="system_system_status").grid(
@@ -821,7 +831,7 @@ class ModbusGuiApp:
         self.column_accumulator_clear()
         self.row_accumulator_add()
         #read Voltage, Current data which converted by PFC
-        ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=12).grid(
+        ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=14).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_voltage_r_cmd_var, width=12, state="readonly").grid(
@@ -1585,6 +1595,7 @@ class ModbusGuiApp:
         debug_print_rx(response)
         float1, float2, u16_1 = parse_current_read_response(response)
         self.root.after(0, lambda: self.response_output_voltage_r_float1_var.set(float1))
+        self.root.after(0, lambda: self.response_output_voltage_r_float1_multiply529_var.set(round(float(float1)*VBUS_MAX_VOLTAGE, FLOAT_ROUND)))
         self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(float2))
         self.root.after(0, lambda: self.response_voltage_r_cmd_var.set(u16_1))
     def _handle_voltage_in_read_response(self, response: bytes) -> None:
