@@ -29,6 +29,7 @@ Read_Addr_status_warning_mode = "03 03 00 43 00 04"
 Read_Addr_status_working_mode = "03 03 00 45 00 01"
 Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
+Write_Bootloader_Command = "03 06 04 B0 00 02 00 00"
 Read_Addr_Output_Voltage = "03 03 00 5F 00 10"
 Read_Addr_Input_Voltage = "03 03 00 60 00 02"
 Read_Addr_Input_Current = "03 03 00 62 00 02"
@@ -1027,6 +1028,20 @@ class ModbusGuiApp:
         self.current_spin.grid(
             row=1, column=1, padx=(8, 12), sticky="w")
         f_current_lab5.columnconfigure(10, weight=1)
+
+    # Live Firmware Upate(LFU) related
+        self.column_accumulator_clear()
+        f_lfu = ttk.LabelFrame(root, text="Live Firmware Upate(LFU)", padding=12)
+        f_lfu.pack(fill="x", pady=(12, 0))        
+
+        ttk.Button(f_lfu, text="PFC unlock", command=self.send_w_bootloader_command_unlock, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Button(f_lfu, text="PFC  reboot", command=self.send_w_bootloader_command_reboot, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+		# f_lfu.columnconfigure(4, weight=1)
+
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         ports = sorted(ports)
@@ -1173,7 +1188,38 @@ class ModbusGuiApp:
             args=(frame, "W_pwm_duty sent", self._handle_parse_pwm_duty_write_response),
             daemon=True,
         ).start()
-    
+    def send_w_bootloader_command_unlock(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Write_Bootloader_Command)
+        self.fill_bytes0_device(request)
+        request[6] = 0x3C
+        request[7] = 0xC3
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_pwm_duty sent", self._handle_parse_bootloader_write_response),
+            daemon=True,
+        ).start()
+    def send_w_bootloader_command_reboot(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Write_Bootloader_Command)
+        self.fill_bytes0_device(request)
+        request[6] = 0x96
+        request[7] = 0x69
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_pwm_duty sent", self._handle_parse_bootloader_write_response),
+            daemon=True,
+        ).start()
     def send_r_current_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1576,6 +1622,9 @@ class ModbusGuiApp:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
     def _handle_parse_pwm_duty_write_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+    def _handle_parse_bootloader_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
     def _handle_current_read_response(self, response: bytes) -> None:
