@@ -37,6 +37,7 @@ Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
 Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
 Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
+Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 
 # Constant
 FLOAT_ROUND = 2
@@ -356,7 +357,11 @@ def parse_u32_read_response(data: bytes) -> tuple[str, str]:
         return "N/A", "N/A"
     u32 = data[6]<<24 |data[7]<<16 |data[8]<<8 | data[9]
     return u32
-
+def parse_u32_index_read_response(data: bytes, idx: int) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    u32 = data[idx]<<24 |data[idx+1]<<16 |data[idx+2]<<8 | data[idx+3]
+    return u32
 def parse_working_mode_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+1:
         return "N/A", "N/A"
@@ -447,6 +452,9 @@ class ModbusGuiApp:
         self.response_voltage_under_r_var = tk.StringVar(value="")
         self.response_current_over_r_var = tk.StringVar(value="")
         self.response_temperature_over_r_var = tk.StringVar(value="")
+
+        self.response_blackbox_r_var = tk.StringVar(value="")
+
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
         # self.input_current_w_var.set("")
@@ -506,7 +514,8 @@ class ModbusGuiApp:
         self.response_voltage_under_r_var.set("")
         self.response_current_over_r_var.set("")
         self.response_temperature_over_r_var.set("")
-
+        
+        self.response_blackbox_r_var.set("")
     def row_accumulator_add(self) -> None:
         self.row_accumulate += 1
     def row_accumulator_get(self) -> None:
@@ -896,6 +905,17 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_Protect.columnconfigure(10, weight=1)
+    # BlackBox related 
+        self.column_accumulator_clear()
+        f_BlackBox = ttk.LabelFrame(root, text="BlackBox Related", padding=12)
+        f_BlackBox.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_BlackBox, text="R_BlackBox", command=self.send_r_blackbox_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Entry(f_BlackBox, textvariable=self.response_blackbox_r_var, width=100, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        f_BlackBox.columnconfigure(10, weight=1)
     # Tab Lab ###############################
         root = tab_lab
         # leg related 
@@ -1620,6 +1640,19 @@ class ModbusGuiApp:
             args=(frame, "R_volt_out sent", self._handle_temperature_over_read_response),
             daemon=True,
         ).start()
+    def send_r_blackbox_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Current_BlackBox)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_blackbox sent", self._handle_blackbox_read_response),
+            daemon=True,
+        ).start()
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -1712,6 +1745,15 @@ class ModbusGuiApp:
         u16 = parse_u16_index_read_response(response, 8)
         self.root.after(0, lambda: self.response_temperature_over_r_var.set(u16))
 
+    def _handle_blackbox_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)        
+        Fault_Code = parse_u16_index_read_response(response, 6)
+        parse_Fault_Code = decode_faults(Fault_Code)
+        Warning_Code = parse_u32_index_read_response(response, 8)
+        Error_Code = parse_u32_index_read_response(response, 12)
+        Log_Counts = parse_u16_index_read_response(response, 16)
+        self.root.after(0, lambda: self.response_blackbox_r_var.set(f"Log_Counts:{Log_Counts}, Error:{Error_Code}, Warn:{Warning_Code}, Fault:{parse_Fault_Code}({Fault_Code})"))
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
