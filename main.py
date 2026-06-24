@@ -210,6 +210,9 @@ def parse_version_read_response(data: bytes) -> tuple[str, str]:
 def parse_current_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+6:
         return "N/A", "N/A"
+    
+    current_cmd = str((data[6] << 8) + data[7])
+
     float_bytes = data[8:12]
     current_ref_value = struct.unpack(">f", float_bytes)[0]
     TTPLPFC_ac_cur_ref_pu = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
@@ -218,8 +221,20 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
     current_ref_value = struct.unpack(">f", float_bytes)[0]
     TTPLPFC_ac_cur_ref_inst_pu  = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    current_cmd = str((data[6] << 8) + data[7])
     return TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd
+def parse_voltage_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+6:
+        return "N/A", "N/A"
+    
+    u16_1 = str((data[6] << 8) + data[7])
+
+    float_bytes = data[8:12]
+    current_ref_value = struct.unpack(">f", float_bytes)[0]
+    f32_1 = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
+
+    u16_2 = str((data[14] << 8) + data[15])
+
+    return u16_2, f32_1, u16_1
 def parse_float_x2_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+6:
         return "N/A", "N/A"
@@ -647,7 +662,7 @@ class ModbusGuiApp:
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_multiply529_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts").grid(
+        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts 0.1V").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
@@ -1708,10 +1723,10 @@ class ModbusGuiApp:
     def _handle_voltage_out_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        float1, float2, u16_1 = parse_current_read_response(response)
+        u16_2, float1, u16_1 = parse_voltage_read_response(response)
         self.root.after(0, lambda: self.response_output_voltage_r_float1_var.set(float1))
         self.root.after(0, lambda: self.response_output_voltage_r_float1_multiply529_var.set(round(float(float1)*VBUS_MAX_VOLTAGE, FLOAT_ROUND)))
-        self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(float2))
+        self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(u16_2))
         self.root.after(0, lambda: self.response_voltage_r_cmd_var.set(u16_1))
     def _handle_voltage_in_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
