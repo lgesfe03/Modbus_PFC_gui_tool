@@ -36,6 +36,7 @@ Read_Addr_Input_Current = "03 03 00 62 00 02"
 Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
 Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
 Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
+Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 
 # Constant
 FLOAT_ROUND = 2
@@ -218,6 +219,17 @@ def parse_current_read_response(data: bytes) -> tuple[str, str]:
 
     current_cmd = str((data[6] << 8) + data[7])
     return TTPLPFC_ac_cur_ref_pu, TTPLPFC_ac_cur_ref_inst_pu, current_cmd
+def parse_float_x2_read_response(data: bytes) -> tuple[str, str]:
+    if len(data) < 6+6:
+        return "N/A", "N/A"
+    float_bytes = data[6:10]
+    float_not_round = struct.unpack(">f", float_bytes)[0]
+    float_round_1 = f"{float_not_round:.6f}".rstrip("0").rstrip(".")
+
+    float_bytes = data[10:14]
+    float_not_round = struct.unpack(">f", float_bytes)[0]
+    float_round_2  = f"{float_not_round:.6f}".rstrip("0").rstrip(".")
+    return float_round_1, float_round_2
 def parse_pwm_duty_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+2:
         return "N/A", "N/A"
@@ -432,6 +444,7 @@ class ModbusGuiApp:
         self.response_current_in_r_var = tk.StringVar(value="")
 
         self.response_voltage_over_r_var = tk.StringVar(value="")
+        self.response_voltage_under_r_var = tk.StringVar(value="")
         self.response_current_over_r_var = tk.StringVar(value="")
         self.response_temperature_over_r_var = tk.StringVar(value="")
     def variable_reset(self) -> None:
@@ -490,6 +503,7 @@ class ModbusGuiApp:
         self.response_current_in_r_var.set("")
         
         self.response_voltage_over_r_var.set("")
+        self.response_voltage_under_r_var.set("")
         self.response_current_over_r_var.set("")
         self.response_temperature_over_r_var.set("")
 
@@ -854,26 +868,32 @@ class ModbusGuiApp:
         f_status.columnconfigure(12, weight=1)
 
     # Protect related 
+        self.column_accumulator_clear()
         f_Protect = ttk.LabelFrame(root, text="Protect Related", padding=12)
         f_Protect.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_Protect, text="R_V_Over_1V", command=self.send_r_voltage_over_command, width=12).grid(
-            row=0, column=0, sticky="w"
+        ttk.Button(f_Protect, text="R_OVP_1V", command=self.send_r_voltage_over_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_voltage_over_r_var, width=12, state="readonly").grid(
-            row=0, column=1, padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-
+        ttk.Button(f_Protect, text="R_UVP_1V", command=self.send_r_voltage_under_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Entry(f_Protect, textvariable=self.response_voltage_under_r_var, width=20, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
         ttk.Button(f_Protect, text="R_C_Over_1A", command=self.send_r_current_over_command, width=12).grid(
-            row=0, column=2, sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_current_over_r_var, width=12, state="readonly").grid(
-            row=0, column=3, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_Protect, text="R_T_over_0.1deg", command=self.send_r_temperature_over_command, width=12).grid(
-            row=0, column=4, sticky="w"
+            row=0, column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_temperature_over_r_var, width=12, state="readonly").grid(
-            row=0, column=5, padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_Protect.columnconfigure(10, weight=1)
     # Tab Lab ###############################
@@ -1561,6 +1581,19 @@ class ModbusGuiApp:
             args=(frame, "R_volt_out sent", self._handle_voltage_over_read_response),
             daemon=True,
         ).start()
+    def send_r_voltage_under_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Output_Volt_Under_Setting)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_volt_out sent", self._handle_voltage_under_read_response),
+            daemon=True,
+        ).start()
     def send_r_current_over_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1663,6 +1696,11 @@ class ModbusGuiApp:
         debug_print_rx(response)
         u16 = parse_u16_index_read_response(response, 8)
         self.root.after(0, lambda: self.response_voltage_over_r_var.set(u16))
+    def _handle_voltage_under_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        f_uvp_back, f_uvp = parse_float_x2_read_response(response)
+        self.root.after(0, lambda: self.response_voltage_under_r_var.set(f"uvp:{f_uvp}, back{f_uvp_back}"))
     def _handle_current_over_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
