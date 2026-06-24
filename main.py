@@ -79,14 +79,14 @@ FAULT_MASKS = {
     "PFC_VAC_OVP":      0x00000020,  # Bit 5
     "PFC_VAC_UFP":      0x00000040,  # Bit 6
     "PFC_VAC_OFP":      0x00000080,  # Bit 7
-    "PFC_OTP_1":        0x00000100,# Bit 8
-    "PFC_OTP_2":        0x00000200,# Bit 9
-    "PFC_OTP_3":        0x00000400,# Bit 10
-    "PFC_OTP_4":        0x00000800,# Bit 11
-    "PFC_VAC_UVP":      0x00001000,# Bit 12
-    "PFC_VBUS_SW_OVP":  0x00002000,# Bit 13
-    "FAU_15":           0x00004000,# Bit 14
-    "PFC_VBUS_UVP":     0x00008000,# Bit 15
+    "PFC_OTP_1":        0x00000100,  # Bit 8
+    "PFC_OTP_2":        0x00000200,  # Bit 9
+    "PFC_OTP_3":        0x00000400,  # Bit 10
+    "PFC_OTP_4":        0x00000800,  # Bit 11
+    "PFC_VAC_UVP":      0x00001000,  # Bit 12
+    "PFC_VBUS_SW_OVP":  0x00002000,  # Bit 13
+    "PFC_Cmd_Out_OFF":  0x00004000,  # Bit 14
+    "PFC_VBUS_UVP":     0x00008000,  # Bit 15
 }
 
 ERROR_MASK = {
