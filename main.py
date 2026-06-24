@@ -883,7 +883,7 @@ class ModbusGuiApp:
         ttk.Entry(f_Protect, textvariable=self.response_voltage_under_r_var, width=20, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Button(f_Protect, text="R_C_Over_1A", command=self.send_r_current_over_command, width=12).grid(
+        ttk.Button(f_Protect, text="R_OCP_1A", command=self.send_r_current_over_command, width=12).grid(
             row=0, column=self.column_accumulator_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_current_over_r_var, width=12, state="readonly").grid(
@@ -1604,7 +1604,7 @@ class ModbusGuiApp:
         debug_print_tx(frame)
         threading.Thread(
             target=self._send_frame_worker,
-            args=(frame, "R_volt_out sent", self._handle_current_over_read_response),
+            args=(frame, "R sent", self._handle_current_over_read_response),
             daemon=True,
         ).start()
     def send_r_temperature_over_command(self) -> None:
@@ -1704,8 +1704,8 @@ class ModbusGuiApp:
     def _handle_current_over_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u16 = parse_u16_index_read_response(response, 8)
-        self.root.after(0, lambda: self.response_current_over_r_var.set(u16))
+        f_iL2_ocp, f_iL1_ocp = parse_float_x2_read_response(response)
+        self.root.after(0, lambda: self.response_current_over_r_var.set(f"A:{f_iL1_ocp}, B:{f_iL2_ocp}"))
     def _handle_temperature_over_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
