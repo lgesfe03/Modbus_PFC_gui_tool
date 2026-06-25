@@ -49,6 +49,8 @@ INPUT_CURRENT_MIN = 0
 INPUT_CURRENT_MAX = 130
 INPUT_VOLTAGE_MIN = 0
 INPUT_VOLTAGE_MAX = 4800
+INPUT_FAULT_MIN = 0
+INPUT_FAULT_MAX = 65535
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -473,6 +475,8 @@ class ModbusGuiApp:
         self.response_temperature_over_r_var = tk.StringVar(value="")
 
         self.response_blackbox_r_var = tk.StringVar(value="")
+        self.input_fault_code_w_var = tk.StringVar(value="0")
+        self.input_fault_code_r_var = tk.StringVar(value="0")
 
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
@@ -535,6 +539,8 @@ class ModbusGuiApp:
         self.response_temperature_over_r_var.set("")
         
         self.response_blackbox_r_var.set("")
+        # self.input_fault_code_w_var.set("")
+        # self.input_fault_code_r_var.set("")
     def row_accumulator_add(self) -> None:
         self.row_accumulate += 1
     def row_accumulator_get(self) -> None:
@@ -580,9 +586,11 @@ class ModbusGuiApp:
 
         tab_basic = ttk.Frame(notebook)
         tab_lab = ttk.Frame(notebook)
+        tab_tool = ttk.Frame(notebook)
         
         notebook.add(tab_basic, text="Basic")
         notebook.add(tab_lab, text="Lab")
+        notebook.add(tab_tool, text="Tool")
 
     # Tab basic
         root = tab_basic
@@ -744,56 +752,6 @@ class ModbusGuiApp:
         )
 
         f_adc_r.columnconfigure(11, weight=1)
-    # get GPIO
-        f_gpio = ttk.LabelFrame(root, text="GPIO Related", padding=12)
-        f_gpio.pack(fill="x", pady=(12, 0))
-        ttk.Button(f_gpio, text="R_GPIO", command=self.send_r_gpio_command, width=12).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
-            row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_NotifyLLC_r_var, width=12, state="readonly").grid(
-            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
-            row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_AC_LOSS_r_var, width=12, state="readonly").grid(
-            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_gpio, text="DO_RELAY").grid(
-            row=0, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_RELAY_r_var, width=12, state="readonly").grid(
-            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_gpio, text="DI_LLC").grid(
-            row=0, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio, textvariable=self.response_gpio_DI_LLC_r_var, width=12, state="readonly").grid(
-            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_gpio, text="Fan1_RPM").grid(
-            row=0, column=9, sticky="w", pady=(8, 0))
-        ttk.Entry(f_gpio, textvariable=self.response_gpio_Fan1_RPM_r_var, width=12, state="readonly").grid(
-            row=0, column=10, padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-
-    # set GPIO
-        ttk.Button(f_gpio, text="W_GPIO", command=self.send_w_gpio_command, width=12).grid(
-            row=1, column=0, sticky="w")
-        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
-            row=1, column=1, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(f_gpio, variable=self.gpio_do_notifyllc_w_var, onvalue=1, offvalue=0,).grid(
-            row=1, column=2, sticky="w", pady=(8, 0))
-        
-        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
-            row=1, column=3, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(f_gpio,variable=self.gpio_do_ac_loss_w_var,onvalue=1,offvalue=0,).grid(
-            row=1, column=4, sticky="w", pady=(8, 0))
-        
-        ttk.Label(f_gpio, text="DO_RELAY").grid(
-            row=1, column=5, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(f_gpio,variable=self.gpio_do_relay_w_var,onvalue=1,offvalue=0,).grid(
-            row=1, column=6, sticky="w", pady=(8, 0))
-        f_gpio.columnconfigure(10, weight=1)
     # status related
         f_status = ttk.LabelFrame(root, text="Status Related", padding=12)
         f_status.pack(fill="x", pady=(12, 0))
@@ -937,6 +895,55 @@ class ModbusGuiApp:
         f_BlackBox.columnconfigure(10, weight=1)
     # Tab Lab ###############################
         root = tab_lab
+        # GPIO related # get GPIO
+        f_gpio = ttk.LabelFrame(root, text="GPIO Related", padding=12)
+        f_gpio.pack(fill="x", pady=(12, 0))
+        ttk.Button(f_gpio, text="R_GPIO", command=self.send_r_gpio_command, width=12).grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
+            row=0, column=1, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_NotifyLLC_r_var, width=12, state="readonly").grid(
+            row=0, column=2, padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
+            row=0, column=3, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_AC_LOSS_r_var, width=12, state="readonly").grid(
+            row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio, text="DO_RELAY").grid(
+            row=0, column=5, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DO_RELAY_r_var, width=12, state="readonly").grid(
+            row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio, text="DI_LLC").grid(
+            row=0, column=7, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_DI_LLC_r_var, width=12, state="readonly").grid(
+            row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_gpio, text="Fan1_RPM").grid(
+            row=0, column=9, sticky="w", pady=(8, 0))
+        ttk.Entry(f_gpio, textvariable=self.response_gpio_Fan1_RPM_r_var, width=12, state="readonly").grid(
+            row=0, column=10, padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        # GPIO related # set GPIO
+        ttk.Button(f_gpio, text="W_GPIO", command=self.send_w_gpio_command, width=12).grid(
+            row=1, column=0, sticky="w")
+        ttk.Label(f_gpio, text="DO_NotifyLLC").grid(
+            row=1, column=1, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio, variable=self.gpio_do_notifyllc_w_var, onvalue=1, offvalue=0,).grid(
+            row=1, column=2, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_gpio, text="DO_AC_LOSS").grid(
+            row=1, column=3, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio,variable=self.gpio_do_ac_loss_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=4, sticky="w", pady=(8, 0))
+        
+        ttk.Label(f_gpio, text="DO_RELAY").grid(
+            row=1, column=5, sticky="w", pady=(8, 0))
+        ttk.Checkbutton(f_gpio,variable=self.gpio_do_relay_w_var,onvalue=1,offvalue=0,).grid(
+            row=1, column=6, sticky="w", pady=(8, 0))
+        f_gpio.columnconfigure(10, weight=1)
         # leg related 
         f_leg = ttk.LabelFrame(root, text="Leg Related", padding=12)
         f_leg.pack(fill="x", pady=(12, 0))
@@ -1100,7 +1107,22 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_get(), sticky="w"
         )
 		# f_lfu.columnconfigure(4, weight=1)
-
+    # Tab Tool ###############################
+        root = tab_tool
+        # Translate related 
+        self.column_accumulator_clear()
+        f_translate_fault = ttk.LabelFrame(root, text="Translate Fault", padding=12)
+        f_translate_fault.pack(fill="x", pady=(12, 0))        
+        ttk.Button(f_translate_fault, text="Fault Code", command=self.translate_fault_code, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        self.fault_spin = ttk.Spinbox(f_translate_fault, from_=INPUT_FAULT_MIN, to=INPUT_FAULT_MAX, textvariable=self.input_fault_code_w_var, width=12)
+        self.fault_spin.grid(
+            row=0, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+        ttk.Entry(f_translate_fault, textvariable=self.input_fault_code_r_var, width=180, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
+        # f_translate_fault.columnconfigure(10, weight=1)
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         ports = sorted(ports)
@@ -1157,6 +1179,17 @@ class ModbusGuiApp:
     def get_data_length(self, response: bytes) -> None:
         length = (response[DATA_LENGTH_INDEX1] << 8) + response[DATA_LENGTH_INDEX2]
         return length
+    def input_value_check(self, var: int, MAX: int, Min: int) -> None:
+        try:
+            value_input = int(var.get().strip())
+        except ValueError:
+            messagebox.showwarning("Invalid value", f"must be an integer between {Min} and {MAX}.")
+            return -1
+        if not Min <= value_input <= MAX:
+            messagebox.showwarning("Invalid value", f"must be an integer between {Min} and {MAX}.")
+            return -2
+        else:
+            return value_input
     def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1504,6 +1537,10 @@ class ModbusGuiApp:
             args=(frame, "R_fault_code sent", self._handle_fault_code_read_response),
             daemon=True,
         ).start()
+    def translate_fault_code(self) -> None:
+        int_falut_code = self.input_value_check(self.input_fault_code_w_var, INPUT_FAULT_MAX, INPUT_FAULT_MIN)
+        parse_Fault_Code = decode_faults(int_falut_code)
+        self.root.after(0, lambda: self.input_fault_code_r_var.set(f"{parse_Fault_Code}({int_falut_code})"))
     def send_r_error_code_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
