@@ -1775,13 +1775,25 @@ class ModbusGuiApp:
 
     def _handle_blackbox_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
-        debug_print_rx(response)        
-        Fault_Code = parse_u16_index_read_response(response, 6)
+        debug_print_rx(response)
+        idx = 6
+        Fault_Code = parse_u16_index_read_response(response, idx)
         parse_Fault_Code = decode_faults(Fault_Code)
-        Warning_Code = parse_u32_index_read_response(response, 8)
-        Error_Code = parse_u32_index_read_response(response, 12)
-        Log_Counts = parse_u16_index_read_response(response, 16)
-        self.root.after(0, lambda: self.response_blackbox_r_var.set(f"Log_Counts:{Log_Counts}, Error:{Error_Code}, Warn:{Warning_Code}, Fault:{parse_Fault_Code}({Fault_Code})"))
+        idx += 2
+        t1_0C1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        t2_0C1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        t3_0C1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        t4_0C1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        ac_volRms_0V1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        vBus_0V1 = parse_u16_index_read_response(response, idx)
+        str = f"Fault:{parse_Fault_Code}({Fault_Code}), t1:{t1_0C1}, t2:{t2_0C1}, t3:{t3_0C1}, t4:{t4_0C1}, ac_volRms_0V1:{ac_volRms_0V1}, vBus_0V1:{vBus_0V1}"
+        self.root.after(0, lambda: self.response_blackbox_r_var.set(str))
+        # self.root.after(0, lambda: self.response_blackbox_r_var.set(f"Log_Counts:{Log_Counts}, Error:{Error_Code}, Warn:{Warning_Code}, Fault:{parse_Fault_Code}({Fault_Code})"))
 
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
