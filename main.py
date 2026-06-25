@@ -30,7 +30,7 @@ Read_Addr_status_working_mode = "03 03 00 45 00 01"
 Write_Addr_Protect_Reset = "03 06 04 7F 00 01 00"
 Write_Addr_Working_Mode = "03 06 04 2C 00 01 00"
 Write_Bootloader_Command = "03 06 04 B0 00 02 00 00"
-Read_Addr_Output_Voltage = "03 03 00 5F 00 10"
+Read_Addr_Output_Voltage = "03 03 00 5F 00 0A"
 Read_Addr_Input_Voltage = "03 03 00 60 00 02"
 Read_Addr_Input_Current = "03 03 00 62 00 02"
 Read_Addr_Output_Volt_Over_Setting = "03 03 00 87 00 08"
@@ -40,6 +40,8 @@ Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 
 # Constant
+DATA_LENGTH_INDEX1 = 4
+DATA_LENGTH_INDEX2 = 5
 FLOAT_ROUND = 2
 VBUS_MAX_VOLTAGE = 529.2375
 # Input limit
@@ -230,11 +232,13 @@ def parse_voltage_read_response(data: bytes) -> tuple[str, str]:
 
     float_bytes = data[8:12]
     current_ref_value = struct.unpack(">f", float_bytes)[0]
-    f32_1 = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
+    TTPLPFC_vBusRef_pu = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    u16_2 = str((data[14] << 8) + data[15])
+    float_bytes = data[12:16]
+    current_ref_value = struct.unpack(">f", float_bytes)[0]
+    TTPLPFC_vBus_sensed_Volts = f"{current_ref_value:.6f}".rstrip("0").rstrip(".")
 
-    return u16_2, f32_1, u16_1
+    return TTPLPFC_vBus_sensed_Volts, TTPLPFC_vBusRef_pu, u16_1
 def parse_float_x2_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+6:
         return "N/A", "N/A"
@@ -662,7 +666,7 @@ class ModbusGuiApp:
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_multiply529_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
-        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts 0.1V").grid(
+        ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts").grid(
             row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
@@ -1150,6 +1154,9 @@ class ModbusGuiApp:
         value_maps_selected = value_maps.get(value_selected)
 
         request[0] = int(value_maps_selected)
+    def get_data_length(self, response: bytes) -> None:
+        length = (response[DATA_LENGTH_INDEX1] << 8) + response[DATA_LENGTH_INDEX2]
+        return length
     def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1720,14 +1727,20 @@ class ModbusGuiApp:
         debug_print_rx(response)
         u32_cla_heartbeat = parse_u32_read_response(response)
         self.root.after(0, lambda: self.response_cla_heartbeat_r_u32_var.set(u32_cla_heartbeat))
+        
     def _handle_voltage_out_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u16_2, float1, u16_1 = parse_voltage_read_response(response)
-        self.root.after(0, lambda: self.response_output_voltage_r_float1_var.set(float1))
-        self.root.after(0, lambda: self.response_output_voltage_r_float1_multiply529_var.set(round(float(float1)*VBUS_MAX_VOLTAGE, FLOAT_ROUND)))
-        self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(u16_2))
-        self.root.after(0, lambda: self.response_voltage_r_cmd_var.set(u16_1))
+        if self.get_data_length(response) == 2:
+            print(f"unit = 0.1V")
+            u16 = parse_u16_index_read_response(response, 6)
+            self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(u16))
+        else :
+            TTPLPFC_vBus_sensed_Volts, float1, u16_1 = parse_voltage_read_response(response)
+            self.root.after(0, lambda: self.response_output_voltage_r_float1_var.set(float1))
+            self.root.after(0, lambda: self.response_output_voltage_r_float1_multiply529_var.set(round(float(float1)*VBUS_MAX_VOLTAGE, FLOAT_ROUND)))
+            self.root.after(0, lambda: self.response_output_voltage_r_float2_var.set(TTPLPFC_vBus_sensed_Volts))
+            self.root.after(0, lambda: self.response_voltage_r_cmd_var.set(u16_1))
     def _handle_voltage_in_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
