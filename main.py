@@ -362,11 +362,7 @@ def parse_leg_read_response(data: bytes) -> tuple[str, str]:
     OPL_HFLeg_SR_EN = (data[6] >> 3) & 0x01
     return HFLegA_EN, HFLegB_EN, OPL_LFLeg_EN, OPL_HFLeg_SR_EN
 
-def parse_u16_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 6+4:
-        return "N/A", "N/A"
-    u16 = data[6]<<8 | data[7]
-    return u16
+
 def parse_u16_index_read_response(data: bytes, idx: int) -> tuple[str, str]:
     if len(data) < 6+4:
         return "N/A", "N/A"
@@ -1209,20 +1205,14 @@ class ModbusGuiApp:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
 
-        try:
-            current_value = int(self.input_current_w_var.get().strip())
-        except ValueError:
-            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_CURRENT_MIN} and {INPUT_CURRENT_MAX}.")
-            return
-
-        if not INPUT_CURRENT_MIN <= current_value <= INPUT_CURRENT_MAX:
-            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_CURRENT_MIN} and {INPUT_CURRENT_MAX}.")
+        int_current_value = self.input_value_check(self.input_current_w_var, INPUT_CURRENT_MAX, INPUT_CURRENT_MIN)
+        if int_current_value < 0:
             return
 
         request = bytearray.fromhex(Write_Addr_Output_Current)
         self.fill_bytes0_device(request)
         # Fill the 8th byte (index 7) before appending CRC, per SetCurrentCmd[7].
-        request[7] = current_value
+        request[7] = int_current_value
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
@@ -1234,22 +1224,15 @@ class ModbusGuiApp:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
-
-        try:
-            voltage_value = int(self.input_output_voltage_w_var.get().strip())
-        except ValueError:
-            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_VOLTAGE_MIN} and {INPUT_VOLTAGE_MAX}.")
-            return
-
-        if not INPUT_VOLTAGE_MIN <= voltage_value <= INPUT_VOLTAGE_MAX:
-            messagebox.showwarning("Invalid value", f"must be an integer between {INPUT_VOLTAGE_MIN} and {INPUT_VOLTAGE_MAX}.")
+        int_voltage_value = self.input_value_check(self.input_output_voltage_w_var, INPUT_VOLTAGE_MAX, INPUT_VOLTAGE_MIN)
+        if int_voltage_value < 0:
             return
 
         request = bytearray.fromhex(Write_Addr_Output_Voltage)
         self.fill_bytes0_device(request)
         # Fill the 8th byte (index 7) before appending CRC, per SetvoltageCmd[7].
-        request[6] = (voltage_value >> 8) & 0xFF
-        request[7] = voltage_value & 0xFF
+        request[6] = (int_voltage_value >> 8) & 0xFF
+        request[7] = int_voltage_value & 0xFF
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
         threading.Thread(
@@ -1781,12 +1764,12 @@ class ModbusGuiApp:
     def _handle_voltage_in_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u16 = parse_u16_read_response(response)
+        u16 = parse_u16_index_read_response(response, 6)
         self.root.after(0, lambda: self.response_voltage_in_r_var.set(u16))        
     def _handle_current_in_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        u16 = parse_u16_read_response(response)
+        u16 = parse_u16_index_read_response(response, 6)
         self.root.after(0, lambda: self.response_current_in_r_var.set(u16))
 
     def _handle_voltage_over_read_response(self, response: bytes) -> None:
