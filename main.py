@@ -39,6 +39,8 @@ Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 
+Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
+Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
 # Constant
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
@@ -51,6 +53,10 @@ INPUT_VOLTAGE_MIN = 0
 INPUT_VOLTAGE_MAX = 4800
 INPUT_FAULT_MIN = 0
 INPUT_FAULT_MAX = 65535
+INPUT_VIRTUAL_VAC_RMS_MIN = 60
+INPUT_VIRTUAL_VAC_RMS_MAX = 300
+INPUT_VIRTUAL_VAC_HZ_MIN = 40
+INPUT_VIRTUAL_VAC_HZ_MAX = 70
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -473,6 +479,11 @@ class ModbusGuiApp:
         self.response_blackbox_r_var = tk.StringVar(value="")
         self.input_fault_code_w_var = tk.StringVar(value="0")
         self.input_fault_code_r_var = tk.StringVar(value="0")
+        self.input_virtual_vac_rms_r_var = tk.StringVar(value="0")
+        self.input_virtual_vac_hz_r_var = tk.StringVar(value="0")
+        self.input_virtual_vac_rms_w_var = tk.StringVar(value="230")
+        self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
+
 
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
@@ -1119,6 +1130,38 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # f_translate_fault.columnconfigure(10, weight=1)
+
+        # Virtual related 
+        self.column_accumulator_clear()
+        f_virtual_VAC = ttk.LabelFrame(root, text="Virtual VAC", padding=12)
+        f_virtual_VAC.pack(fill="x", pady=(12, 0))   
+        ttk.Button(f_virtual_VAC, text="R_virtual", command=self.send_r_virtual_vac_command, width=12).grid(
+            row=0, column=self.column_accumulator_get(), sticky="w"
+        )
+        ttk.Label(f_virtual_VAC, text="virtual_vac_rms").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_rms_r_var, width=12, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+        ttk.Label(f_virtual_VAC, text="virtual_vac_hz").grid(
+            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_hz_r_var, width=12, state="readonly").grid(
+            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+
+        self.column_accumulator_clear()
+        ttk.Button(f_virtual_VAC, text="W_virtual", command=self.send_w_virtual_vac_command, width=12).grid(
+            row=1, column=self.column_accumulator_get(), sticky="w"
+        )
+        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_RMS_MIN, to=INPUT_VIRTUAL_VAC_RMS_MAX, textvariable=self.input_virtual_vac_rms_w_var, width=12)
+        self.fault_spin.grid(
+            row=1, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_HZ_MIN, to=INPUT_VIRTUAL_VAC_HZ_MAX, textvariable=self.input_virtual_vac_hz_w_var, width=12)
+        self.fault_spin.grid(
+            row=1, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+        
+        # f_virtual_VAC.columnconfigure(10, weight=1)
+        
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         ports = sorted(ports)
@@ -1220,6 +1263,33 @@ class ModbusGuiApp:
             args=(frame, "W_current sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
+    def send_w_virtual_vac_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        int_vac_rms_value = self.input_value_check(self.input_virtual_vac_rms_w_var, INPUT_VIRTUAL_VAC_RMS_MAX, INPUT_VIRTUAL_VAC_RMS_MIN)
+        if int_vac_rms_value < 0:
+            return
+        int_vac_hz_value = self.input_value_check(self.input_virtual_vac_hz_w_var, INPUT_VIRTUAL_VAC_HZ_MAX, INPUT_VIRTUAL_VAC_HZ_MIN)
+        if int_vac_hz_value < 0:
+            return
+        
+        request = bytearray.fromhex(Write_VIRTUAL_VAC)
+        self.fill_bytes0_device(request)
+
+        request[6] = (int_vac_rms_value >> 8) & 0xFF
+        request[7] = int_vac_rms_value & 0xFF
+        request[8] = (int_vac_hz_value >> 8) & 0xFF
+        request[9] = int_vac_hz_value & 0xFF
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_virtual sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
     def send_w_output_voltage_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1310,6 +1380,20 @@ class ModbusGuiApp:
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "R_current sent", self._handle_current_read_response),
+            daemon=True,
+        ).start()
+    def send_r_virtual_vac_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Read_Addr_VIRTUAL_VAC)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_virtuan sent", self._handle_virtual_vac_read_response),
             daemon=True,
         ).start()
     def send_r_cla_heartbeat_command(self) -> None:
@@ -1742,6 +1826,13 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_current_r_float1_var.set(TTPLPFC_ac_cur_ref_pu))
         self.root.after(0, lambda: self.response_current_r_float2_var.set(TTPLPFC_ac_cur_ref_inst_pu))
         self.root.after(0, lambda: self.response_current_r_cmd_var.set(current_cmd))
+    def _handle_virtual_vac_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        u16_vac_hz = parse_u16_index_read_response(response, 6)
+        u16_vac_rms = parse_u16_index_read_response(response, 8)
+        self.root.after(0, lambda: self.input_virtual_vac_rms_r_var.set(u16_vac_rms))
+        self.root.after(0, lambda: self.input_virtual_vac_hz_r_var.set(u16_vac_hz))
     def _handle_cla_heartbeat_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
