@@ -548,6 +548,9 @@ class ModbusGuiApp:
         self.response_blackbox_r_var.set("")
         # self.input_fault_code_w_var.set("")
         # self.input_fault_code_r_var.set("")
+        self.input_virtual_vac_rms_r_var.set("")
+        self.input_virtual_vac_hz_r_var.set("")
+
     def row_accumulator_add(self) -> None:
         self.row_accumulate += 1
     def row_accumulator_get(self) -> None:
