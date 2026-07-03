@@ -846,7 +846,7 @@ class ModbusGuiApp:
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         #write working mode
-        ttk.Button(f_status, text="W_Work_mode", command=self.send_w_working_mode_command, width=12).grid(
+        ttk.Button(f_status, text="W_Work_mode", command=self.send_w_working_mode_command, width=12, state="disabled").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
