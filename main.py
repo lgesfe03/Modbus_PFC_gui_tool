@@ -469,7 +469,7 @@ class ModbusGuiApp:
         self.response_system_status_relay_r_var = tk.StringVar(value="Relay:")
         self.response_system_system_status_r_var = tk.StringVar(value="")
         self.response_system_status_HwControlStatus_r_var = tk.StringVar(value="")
-        self.response_system_status_aux_r_var = tk.StringVar(value="")
+        self.response_system_status_aux_r_var = tk.StringVar(value="Aux:")
         self.response_system_status_NormalTripSource_r_var = tk.StringVar(value="")
 
         self.response_leg_HFLegA_EN_r_var = tk.StringVar(value="")
@@ -540,7 +540,7 @@ class ModbusGuiApp:
         self.response_system_status_relay_r_var.set("Relay:")
         self.response_system_system_status_r_var.set("")
         self.response_system_status_HwControlStatus_r_var.set("")
-        self.response_system_status_aux_r_var.set("")
+        self.response_system_status_aux_r_var.set("Aux:")
         self.response_system_status_NormalTripSource_r_var.set("")
         self.response_leg_HFLegA_EN_r_var.set("")
         self.response_leg_HFLegB_EN_r_var.set("")
@@ -576,7 +576,7 @@ class ModbusGuiApp:
         return self.row_accumulate
     def row_accumulator_clear(self) -> None:
         self.row_accumulate = 0
-    def column_accumulator_get(self) -> None:
+    def column_accumulator_add_get(self) -> None:
         self.column_accumulate += 1
         return self.column_accumulate - 1
     def column_accumulator_clear(self) -> None:
@@ -668,21 +668,21 @@ class ModbusGuiApp:
         f_get_version = ttk.LabelFrame(root, text="FW_version", padding=12)
         f_get_version.pack(fill="x", pady=(12, 0))
         ttk.Button(f_get_version, text="R_Version", command=self.send_r_version_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_get_version, text="Version.").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_get_version, textvariable=self.response_fw_version_read_all_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         # get CLA heartbeat
         ttk.Button(f_get_version, text="R_CLA_heartbeat", command=self.send_r_cla_heartbeat_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_get_version, text="test_cla_heartbeat").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_get_version, textvariable=self.response_cla_heartbeat_r_u32_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         f_get_version.columnconfigure(10, weight=1)
     # Lab6 Voltage related
@@ -691,27 +691,27 @@ class ModbusGuiApp:
         f_voltage_lab6.pack(fill="x", pady=(12, 0))        
         # get voltage
         ttk.Button(f_voltage_lab6, text="R_voltage", command=self.send_r_voltage_out_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="TTPLPFC_vBusRef_pu").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="vBusRef").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float1_multiply529_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="TTPLPFC_vBus_sensed_Volts").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_output_voltage_r_float2_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="voltage_cmd_from_modbus").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_voltage_lab6, textvariable=self.response_voltage_r_cmd_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set voltage
         self.column_accumulator_clear()
@@ -787,98 +787,98 @@ class ModbusGuiApp:
         self.row_accumulator_clear()
         self.column_accumulator_clear()
         ttk.Button(f_status, text="R_FAULT", command=self.send_r_fault_code_command, width=12).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Fault_Code_r_var, width=32, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         ttk.Button(f_status, text="R_ERROR", command=self.send_r_error_code_command, width=12).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Error_Code_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_status, text="R_WARNING", command=self.send_r_warning_code_command, width=12).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Warning_Code_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
 
         self.column_accumulator_clear()
         self.row_accumulator_add()
         ttk.Button(f_status, text="R_SystemStatus", command=self.send_r_system_status_command, width=14).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        # ttk.Label(f_status, text="Aux_SUBSYSTEM").grid(
+        #     row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_aux_r_var, width=32, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # ttk.Label(f_status, text="Relay").grid(
-        #     row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        #     row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=32, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_status, text="Aux_SUBSYSTEM").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_system_status_aux_r_var, width=32, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="system_system_status").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_system_status_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )        
         ttk.Label(f_status, text="HwControlStatus").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_status_HwControlStatus_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="NormalTripSource").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_status_NormalTripSource_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
 
         self.column_accumulator_clear()
         self.row_accumulator_add()
         ttk.Button(f_status, text="R_Work_mode", command=self.send_r_working_code_command, width=14).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_Working_Mode_r_var, width=20, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         #write working mode
         ttk.Button(f_status, text="W_Work_mode", command=self.send_w_working_mode_command, width=12).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         self.work_mode_spin = ttk.Spinbox(f_status, from_=0, to=9, textvariable=self.input_working_mode_w_var, width=10)
         self.work_mode_spin.grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         #write protect reset
         ttk.Button(f_status, text="W_Protect_reset", command=self.send_w_protect_reset_command, width=14).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w")
         ttk.Checkbutton(f_status, variable=self.input_protect_reset_w_var, onvalue=1, offvalue=0,).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         
         self.column_accumulator_clear()
         self.row_accumulator_add()
         #read Voltage, Current data which converted by PFC
         ttk.Button(f_status, text="R_V_out_100mV", command=self.send_r_voltage_out_command, width=14).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_voltage_r_cmd_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         ttk.Button(f_status, text="R_V_in_100mV", command=self.send_r_voltage_in_command, width=14).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_voltage_in_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_status, text="R_C_in_10mA", command=self.send_r_current_in_command, width=12).grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_status, textvariable=self.response_current_in_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )       
         f_status.columnconfigure(12, weight=1)
 
@@ -887,28 +887,28 @@ class ModbusGuiApp:
         f_Protect = ttk.LabelFrame(root, text="Protect Related", padding=12)
         f_Protect.pack(fill="x", pady=(12, 0))
         ttk.Button(f_Protect, text="R_OVP_1V", command=self.send_r_voltage_over_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_voltage_over_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_Protect, text="R_UVP_1V", command=self.send_r_voltage_under_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_voltage_under_r_var, width=20, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_Protect, text="R_OCP_1A", command=self.send_r_current_over_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_current_over_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Button(f_Protect, text="R_T_over_0.1deg", command=self.send_r_temperature_over_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_Protect, textvariable=self.response_temperature_over_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_Protect.columnconfigure(10, weight=1)
     # BlackBox related 
@@ -916,10 +916,10 @@ class ModbusGuiApp:
         f_BlackBox = ttk.LabelFrame(root, text="BlackBox Related", padding=12)
         f_BlackBox.pack(fill="x", pady=(12, 0))
         ttk.Button(f_BlackBox, text="R_BlackBox", command=self.send_r_blackbox_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_BlackBox, textvariable=self.response_blackbox_r_var, width=100, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         f_BlackBox.columnconfigure(10, weight=1)
     # Tab Lab ###############################
@@ -1066,22 +1066,22 @@ class ModbusGuiApp:
         f_current_lab4.pack(fill="x", pady=(12, 0))        
         # get current
         ttk.Button(f_current_lab4, text="R_current", command=self.send_r_current_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_current_lab4, text="TTPLPFC_ac_cur_ref_pu").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab4, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))        
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))        
         ttk.Entry(f_current_lab4, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab4, text="current_cmd_from_modbus").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab4, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
         ttk.Button(f_current_lab4, text="W_TTPLPFC_ac_cur_ref_inst_pu", command=self.send_w_current_command, width=30).grid(
@@ -1097,22 +1097,22 @@ class ModbusGuiApp:
         f_current_lab5.pack(fill="x", pady=(12, 0))        
         # get current
         ttk.Button(f_current_lab5, text="R_current", command=self.send_r_current_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_pu").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float1_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab5, text="TTPLPFC_ac_cur_ref_inst_pu").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab5, textvariable=self.response_current_r_float2_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_current_lab5, text="current_cmd_from_modbus").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_current_lab5, textvariable=self.response_current_r_cmd_var, width=18, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # set current
         self.column_accumulator_clear()
@@ -1130,10 +1130,10 @@ class ModbusGuiApp:
         f_lfu.pack(fill="x", pady=(12, 0))        
 
         ttk.Button(f_lfu, text="PFC unlock", command=self.send_w_bootloader_command_unlock, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Button(f_lfu, text="PFC  reboot", command=self.send_w_bootloader_command_reboot, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
 		# f_lfu.columnconfigure(4, weight=1)
     # Tab Tool ###############################
@@ -1143,13 +1143,13 @@ class ModbusGuiApp:
         f_translate_fault = ttk.LabelFrame(root, text="Translate Fault", padding=12)
         f_translate_fault.pack(fill="x", pady=(12, 0))        
         ttk.Button(f_translate_fault, text="Fault Code", command=self.translate_fault_code, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         self.fault_spin = ttk.Spinbox(f_translate_fault, from_=INPUT_FAULT_MIN, to=INPUT_FAULT_MAX, textvariable=self.input_fault_code_w_var, width=12)
         self.fault_spin.grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         ttk.Entry(f_translate_fault, textvariable=self.input_fault_code_r_var, width=180, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         # f_translate_fault.columnconfigure(10, weight=1)
 
@@ -1158,29 +1158,29 @@ class ModbusGuiApp:
         f_virtual_VAC = ttk.LabelFrame(root, text="Virtual VAC", padding=12)
         f_virtual_VAC.pack(fill="x", pady=(12, 0))   
         ttk.Button(f_virtual_VAC, text="R_virtual", command=self.send_r_virtual_vac_command, width=12).grid(
-            row=0, column=self.column_accumulator_get(), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_virtual_VAC, text="virtual_vac_rms").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_rms_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_virtual_VAC, text="virtual_vac_hz").grid(
-            row=0, column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_hz_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         self.column_accumulator_clear()
         ttk.Button(f_virtual_VAC, text="W_virtual", command=self.send_w_virtual_vac_command, width=12).grid(
-            row=1, column=self.column_accumulator_get(), sticky="w"
+            row=1, column=self.column_accumulator_add_get(), sticky="w"
         )
         self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_RMS_MIN, to=INPUT_VIRTUAL_VAC_RMS_MAX, textvariable=self.input_virtual_vac_rms_w_var, width=12)
         self.fault_spin.grid(
-            row=1, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+            row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_HZ_MIN, to=INPUT_VIRTUAL_VAC_HZ_MAX, textvariable=self.input_virtual_vac_hz_w_var, width=12)
         self.fault_spin.grid(
-            row=1, column=self.column_accumulator_get(), padx=(8, 12), sticky="w")
+            row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         
         # f_virtual_VAC.columnconfigure(10, weight=1)
         
