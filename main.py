@@ -54,9 +54,9 @@ INPUT_VOLTAGE_MAX = 4800
 INPUT_FAULT_MIN = 0
 INPUT_FAULT_MAX = 65535
 INPUT_VIRTUAL_VAC_RMS_MIN = 60
-INPUT_VIRTUAL_VAC_RMS_MAX = 300
-INPUT_VIRTUAL_VAC_HZ_MIN = 40
-INPUT_VIRTUAL_VAC_HZ_MAX = 70
+INPUT_VIRTUAL_VAC_RMS_MAX = 400
+INPUT_VIRTUAL_VAC_HZ_MIN = 1
+INPUT_VIRTUAL_VAC_HZ_MAX = 90
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -82,6 +82,25 @@ class _Relay_Mode(Enum):
     PFC_RELAY_ON_MODE= auto()
     PFC_RELAY_OPENING_MODE= auto()
     
+class _SubsystemState_Aux_Mode(Enum):
+    # vAC check
+    VAC_WAIT_VAC_STABLE = 0
+    VAC_CHK_PLL_LOCKED = auto()
+    VAC_CHK_VOLT_BRNIN = auto()
+    VAC_PRECHK_TZ_OCP = auto()
+    VAC_CHK_ACPWR_LOST_BEEN_RESETED = auto()
+    VAC_CHK_ACIN_OVP_OFP_UFP = auto()
+    # Unit check
+    UNIT_READ_EEPROM_DATA = 0xA0
+    UNIT_WAIT_READ_EE = auto()
+    UNIT_CHECK_EE_DATA = auto()
+    UNIT_EEPROM_INITIAL = auto()
+    UNIT_VARIABLES_INITIAL = auto()
+    UNIT_CHECK_REF1V65 = auto()
+    UNIT_BOOTUP_SUCCESSFUL = auto()
+    UNIT_BOOTUP_FAULT = auto()
+    UNIT_IDLE = auto()
+
 FAULT_MASKS = {
     "PFC_IL1_TZ_OCP":   0x00000001,  # Bit 0
     "PFC_IL1_SW_RCP":   0x00000002,  # Bit 1
@@ -797,6 +816,11 @@ class ModbusGuiApp:
         ttk.Entry(f_status, textvariable=self.response_system_status_relay_r_var, width=32, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
+        ttk.Label(f_status, text="Aux_SUBSYSTEM").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
+        ttk.Entry(f_status, textvariable=self.response_system_status_aux_r_var, width=32, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
         ttk.Label(f_status, text="system_system_status").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_system_status_r_var, width=12, state="readonly").grid(
@@ -805,11 +829,6 @@ class ModbusGuiApp:
         ttk.Label(f_status, text="HwControlStatus").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_status, textvariable=self.response_system_status_HwControlStatus_r_var, width=12, state="readonly").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
-        )
-        ttk.Label(f_status, text="aux").grid(
-            row=self.row_accumulator_get(), column=self.column_accumulator_get(), sticky="w", pady=(8, 0))
-        ttk.Entry(f_status, textvariable=self.response_system_status_aux_r_var, width=12, state="readonly").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_status, text="NormalTripSource").grid(
@@ -1952,11 +1971,14 @@ class ModbusGuiApp:
 
         int_system_status_relay = int(system_status_relay)
         enum_relay_mode = _Relay_Mode(int_system_status_relay)
-        self.root.after(0, lambda: self.response_system_status_relay_r_var.set(f"{enum_relay_mode.name}({int_system_status_relay})"))
+        self.root.after(0, lambda: self.response_system_status_relay_r_var.set(f"({int_system_status_relay}) {enum_relay_mode.name}"))
+
+        int_sub_system_aux = int(system_status_aux)
+        enum_aux_mode =  _SubsystemState_Aux_Mode(int_sub_system_aux)
+        self.root.after(0, lambda: self.response_system_status_aux_r_var.set(f"({int_sub_system_aux}) {enum_aux_mode.name}"))
 
         self.root.after(0, lambda: self.response_system_system_status_r_var.set(system_status))
         self.root.after(0, lambda: self.response_system_status_HwControlStatus_r_var.set(system_status_HwControlStatus))
-        self.root.after(0, lambda: self.response_system_status_aux_r_var.set(system_status_aux))
         self.root.after(0, lambda: self.response_system_status_NormalTripSource_r_var.set(system_status_NormalTripSource))
     def _handle_gpio_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
