@@ -8,7 +8,7 @@ from enum import Enum, auto
 import serial
 from serial.tools import list_ports
 
-DESTINATE_DEVICE_OPTIONS = [['0x03 ControlBoard', 0x03], ['0x04 Single PFC', 0x04], ['0x00 PSU', 0x00]]
+DESTINATE_DEVICE_OPTIONS = [['0x03 ControlBoard', 0x03], ['0x04 Single PFC', 0x04], ['0x00 PSU', 0x00], ['0x07 PSU', 0x07]]
 Read_Addr_FW_version = "03 03 00 01 00 04"
 Read_Addr_Output_Current = "03 03 00 61 00 10"
 Read_Addr_CLA_heartbeat = "03 03 00 18 00 04"
@@ -41,6 +41,7 @@ Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
+Write_VIRTUAL_VAC_LINE_DROP = "03 06 04 30 00 01 00 " #test on EVM virtual VAC line drop, unit pi
 # Constant
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
@@ -502,6 +503,7 @@ class ModbusGuiApp:
         self.input_virtual_vac_hz_r_var = tk.StringVar(value="0")
         self.input_virtual_vac_rms_w_var = tk.StringVar(value="230")
         self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
+        self.input_virtual_vac_drop_w_var = tk.StringVar(value="0")
 
 
     def variable_reset(self) -> None:
@@ -1182,6 +1184,13 @@ class ModbusGuiApp:
         self.fault_spin.grid(
             row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         
+        self.column_accumulator_clear()
+        ttk.Button(f_virtual_VAC, text="W_v_drop", command=self.send_w_virtual_vac_drop_command, width=12).grid(
+            row=2, column=self.column_accumulator_add_get(), sticky="w"
+        )
+        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_virtual_vac_drop_w_var, width=12)
+        self.fault_spin.grid(
+            row=2, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         # f_virtual_VAC.columnconfigure(10, weight=1)
         
     def refresh_ports(self) -> None:
@@ -1310,6 +1319,26 @@ class ModbusGuiApp:
         threading.Thread(
             target=self._send_frame_worker,
             args=(frame, "W_virtual sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
+    def send_w_virtual_vac_drop_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        int_vac_drop_value = self.input_value_check(self.input_virtual_vac_hz_w_var, INPUT_CURRENT_MAX, INPUT_CURRENT_MIN)
+        if int_vac_drop_value < 0:
+            return
+        
+        request = bytearray.fromhex(Write_VIRTUAL_VAC_LINE_DROP)
+        self.fill_bytes0_device(request)
+
+        request[6] = int_vac_drop_value & 0xFF
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_virtual drop sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
     def send_w_output_voltage_command(self) -> None:
