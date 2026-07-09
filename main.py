@@ -1325,7 +1325,7 @@ class ModbusGuiApp:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
-        int_vac_drop_value = self.input_value_check(self.input_virtual_vac_hz_w_var, INPUT_CURRENT_MAX, INPUT_CURRENT_MIN)
+        int_vac_drop_value = self.input_value_check(self.input_virtual_vac_drop_w_var, INPUT_CURRENT_MAX, INPUT_CURRENT_MIN)
         if int_vac_drop_value < 0:
             return
         
