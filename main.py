@@ -42,6 +42,7 @@ Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
 Write_VIRTUAL_VAC_LINE_DROP = "03 06 04 30 00 01 00 " #test on EVM virtual VAC line drop, unit pi
+Write_VIRTUAL_VBUS = "03 06 04 31 00 02 00 00 " #test on EVM virtual VBUS 0~4095 (0V~529V)
 # Constant
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
@@ -58,6 +59,9 @@ INPUT_VIRTUAL_VAC_RMS_MIN = 60
 INPUT_VIRTUAL_VAC_RMS_MAX = 400
 INPUT_VIRTUAL_VAC_HZ_MIN = 1
 INPUT_VIRTUAL_VAC_HZ_MAX = 90
+INPUT_VIRTUAL_VBUS_MIN = 0
+INPUT_VIRTUAL_VBUS_MAX = 4095
+
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -504,6 +508,7 @@ class ModbusGuiApp:
         self.input_virtual_vac_rms_w_var = tk.StringVar(value="230")
         self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
         self.input_virtual_vac_drop_w_var = tk.StringVar(value="0")
+        self.input_virtual_vbus_w_var = tk.StringVar(value="0")
 
 
     def variable_reset(self) -> None:
@@ -717,12 +722,14 @@ class ModbusGuiApp:
         )
         # set voltage
         self.column_accumulator_clear()
-        ttk.Button(f_voltage_lab6, text="W_voltage", command=self.send_w_output_voltage_command, width=12).grid(
-            row=1, column=0, sticky="w"
+        ttk.Button(f_voltage_lab6, text="W_voltage", command=self.send_w_output_voltage_command, width=12, state="disabled").grid(
+            row=1, column=self.column_accumulator_add_get(), sticky="w"
         )
+        ttk.Label(f_voltage_lab6, text="0~4095 /4095 *529V:").grid(
+            row=1, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         self.voltage_spin = ttk.Spinbox(f_voltage_lab6, from_=INPUT_VOLTAGE_MIN, to=INPUT_VOLTAGE_MAX, textvariable=self.input_output_voltage_w_var, width=10)
         self.voltage_spin.grid(
-            row=1, column=1, padx=(8, 12), sticky="w")
+            row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         f_voltage_lab6.columnconfigure(10, weight=1)
     # get ADCs
         f_adc_r = ttk.LabelFrame(root, text="ADC1 Read", padding=12)
@@ -1156,41 +1163,64 @@ class ModbusGuiApp:
         # f_translate_fault.columnconfigure(10, weight=1)
 
         # Virtual related 
+        self.row_accumulator_clear()
         self.column_accumulator_clear()
         f_virtual_VAC = ttk.LabelFrame(root, text="Virtual VAC", padding=12)
         f_virtual_VAC.pack(fill="x", pady=(12, 0))   
-        ttk.Button(f_virtual_VAC, text="R_virtual", command=self.send_r_virtual_vac_command, width=12).grid(
-            row=0, column=self.column_accumulator_add_get(), sticky="w"
+        ttk.Button(f_virtual_VAC, text="R_v_AC", command=self.send_r_virtual_vac_command, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_virtual_VAC, text="virtual_vac_rms").grid(
-            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_rms_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_virtual_VAC, text="virtual_vac_hz").grid(
-            row=0, column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         ttk.Entry(f_virtual_VAC, textvariable=self.input_virtual_vac_hz_r_var, width=12, state="readonly").grid(
-            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
+        self.row_accumulator_add()
         self.column_accumulator_clear()
-        ttk.Button(f_virtual_VAC, text="W_virtual", command=self.send_w_virtual_vac_command, width=12).grid(
-            row=1, column=self.column_accumulator_add_get(), sticky="w"
+        ttk.Button(f_virtual_VAC, text="W_v_AC", command=self.send_w_virtual_vac_command, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
+        ttk.Label(f_virtual_VAC, text="V RMS:").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_RMS_MIN, to=INPUT_VIRTUAL_VAC_RMS_MAX, textvariable=self.input_virtual_vac_rms_w_var, width=12)
         self.fault_spin.grid(
-            row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+        ttk.Label(f_virtual_VAC, text="Hz:").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VAC_HZ_MIN, to=INPUT_VIRTUAL_VAC_HZ_MAX, textvariable=self.input_virtual_vac_hz_w_var, width=12)
         self.fault_spin.grid(
-            row=1, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         
+        self.row_accumulator_add()
         self.column_accumulator_clear()
         ttk.Button(f_virtual_VAC, text="W_v_drop", command=self.send_w_virtual_vac_drop_command, width=12).grid(
-            row=2, column=self.column_accumulator_add_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
+        ttk.Label(f_virtual_VAC, text="Unit π:").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_CURRENT_MIN, to=INPUT_CURRENT_MAX, textvariable=self.input_virtual_vac_drop_w_var, width=12)
         self.fault_spin.grid(
-            row=2, column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+        
+        self.row_accumulator_add()
+        self.column_accumulator_clear()
+        ttk.Button(f_virtual_VAC, text="W_v_bus", command=self.send_w_virtual_vbus_command, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Label(f_virtual_VAC, text="0~4095 /4095 *529V:").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
+        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_VIRTUAL_VBUS_MIN, to=INPUT_VIRTUAL_VBUS_MAX, textvariable=self.input_virtual_vbus_w_var, width=12)
+        self.fault_spin.grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+        
+
+        self.row_accumulator_clear()
         # f_virtual_VAC.columnconfigure(10, weight=1)
         
     def refresh_ports(self) -> None:
@@ -1341,6 +1371,28 @@ class ModbusGuiApp:
             args=(frame, "W_virtual drop sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
+    def send_w_virtual_vbus_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        int_vbus_value = self.input_value_check(self.input_virtual_vbus_w_var, INPUT_VIRTUAL_VBUS_MAX, INPUT_VIRTUAL_VBUS_MIN)
+        if int_vbus_value < 0:
+            return
+        
+        request = bytearray.fromhex(Write_VIRTUAL_VBUS)
+        self.fill_bytes0_device(request)
+
+        request[6] = (int_vbus_value >> 8) & 0xFF
+        request[7] = int_vbus_value & 0xFF
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_virtual bus sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
+    
     def send_w_output_voltage_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
