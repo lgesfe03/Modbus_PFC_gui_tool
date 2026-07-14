@@ -17,6 +17,7 @@ Write_Addr_PWM_duty = "03 06 04 0C 00 02 00 00"
 Read_Addr_ADC1 = "03 03 00 0C 00 0A"
 Read_Addr_ADC2 = "03 03 00 0D 00 08"
 Read_Addr_GPIO = "03 03 00 15 00 01"
+Read_Addr_Get_ZCThreshold = "03 03 00 1A 00 10"
 Read_Addr_system_status = "03 03 00 1C 00 05"
 Write_Addr_Output_Current = "03 06 04 48 00 02 00 01"
 Write_Addr_Output_Voltage = "03 06 04 46 00 02 00 01"
@@ -409,6 +410,13 @@ def parse_u32_index_read_response(data: bytes, idx: int) -> tuple[str, str]:
         return "N/A", "N/A"
     u32 = data[idx]<<24 |data[idx+1]<<16 |data[idx+2]<<8 | data[idx+3]
     return u32
+def parse_f32_index_read_response(data: bytes, idx: int) -> tuple[str, str]:
+    if len(data) < 6+4:
+        return "N/A", "N/A"
+    float_bytes = data[idx:(idx+4)]
+    float_not_round = struct.unpack(">f", float_bytes)[0]
+    float_round_1 = f"{float_not_round:.6f}".rstrip("0").rstrip(".")
+    return float_round_1
 def parse_working_mode_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+1:
         return "N/A", "N/A"
@@ -499,6 +507,7 @@ class ModbusGuiApp:
         self.response_voltage_under_r_var = tk.StringVar(value="")
         self.response_current_over_r_var = tk.StringVar(value="")
         self.response_temperature_over_r_var = tk.StringVar(value="")
+        self.response_ZCThreshold_r_var = tk.StringVar(value="")
 
         self.response_blackbox_r_var = tk.StringVar(value="")
         self.input_fault_code_w_var = tk.StringVar(value="0")
@@ -570,7 +579,8 @@ class ModbusGuiApp:
         self.response_voltage_under_r_var.set("")
         self.response_current_over_r_var.set("")
         self.response_temperature_over_r_var.set("")
-        
+        self.response_ZCThreshold_r_var.set("")
+
         self.response_blackbox_r_var.set("")
         # self.input_fault_code_w_var.set("")
         # self.input_fault_code_r_var.set("")
@@ -722,7 +732,7 @@ class ModbusGuiApp:
         )
         # set voltage
         self.column_accumulator_clear()
-        ttk.Button(f_voltage_lab6, text="W_voltage", command=self.send_w_output_voltage_command, width=12, state="disabled").grid(
+        ttk.Button(f_voltage_lab6, text="W_voltage", command=self.send_w_output_voltage_command, width=12, state="enabled").grid(
             row=1, column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Label(f_voltage_lab6, text="0~4095 /4095 *529V:").grid(
@@ -919,6 +929,8 @@ class ModbusGuiApp:
         ttk.Entry(f_Protect, textvariable=self.response_temperature_over_r_var, width=12, state="readonly").grid(
             row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
+
+        
         f_Protect.columnconfigure(10, weight=1)
     # BlackBox related 
         self.column_accumulator_clear()
@@ -929,6 +941,14 @@ class ModbusGuiApp:
         )
         ttk.Entry(f_BlackBox, textvariable=self.response_blackbox_r_var, width=100, state="readonly").grid(
             row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+
+        self.column_accumulator_clear()
+        ttk.Button(f_BlackBox, text="R_ZCD_threshold", command=self.send_r_ZCThreshold_command, width=12).grid(
+            row=1, column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Entry(f_BlackBox, textvariable=self.response_ZCThreshold_r_var, width=100, state="readonly").grid(
+            row=1, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_BlackBox.columnconfigure(10, weight=1)
     # Tab Lab ###############################
@@ -1869,6 +1889,19 @@ class ModbusGuiApp:
             args=(frame, "R_volt_out sent", self._handle_temperature_over_read_response),
             daemon=True,
         ).start()
+    def send_r_ZCThreshold_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Get_ZCThreshold)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_ZCThreshold sent", self._handle_ZCThreshold_read_response),
+            daemon=True,
+        ).start()
     def send_r_blackbox_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1986,7 +2019,14 @@ class ModbusGuiApp:
         debug_print_rx(response)
         u16 = parse_u16_index_read_response(response, 8)
         self.root.after(0, lambda: self.response_temperature_over_r_var.set(u16))
-
+    def _handle_ZCThreshold_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        f32_1 = parse_f32_index_read_response(response, 6)
+        f32_2 = parse_f32_index_read_response(response, 10)
+        f32_3 = parse_f32_index_read_response(response, 14)
+        f32_4 = parse_f32_index_read_response(response, 18)
+        self.root.after(0, lambda: self.response_ZCThreshold_r_var.set(f"NZC2:{f32_1}, NZC1:{f32_2}, PZC2:{f32_3}, PZC1:{f32_4}"))
     def _handle_blackbox_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
