@@ -39,6 +39,7 @@ Read_Addr_Output_Curr_Over_Setting = "03 03 00 88 00 08"
 Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
+Read_Addr_Merged_BlackBox = "03 03 00 A1 00 20"
 
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
@@ -510,6 +511,7 @@ class ModbusGuiApp:
         self.response_ZCThreshold_r_var = tk.StringVar(value="")
 
         self.response_blackbox_r_var = tk.StringVar(value="")
+        self.response_blackbox_merged_r_var = tk.StringVar(value="")
         self.input_fault_code_w_var = tk.StringVar(value="0")
         self.input_fault_code_r_var = tk.StringVar(value="0")
         self.input_virtual_vac_rms_r_var = tk.StringVar(value="0")
@@ -582,6 +584,7 @@ class ModbusGuiApp:
         self.response_ZCThreshold_r_var.set("")
 
         self.response_blackbox_r_var.set("")
+        self.response_blackbox_merged_r_var.set("")
         # self.input_fault_code_w_var.set("")
         # self.input_fault_code_r_var.set("")
         self.input_virtual_vac_rms_r_var.set("")
@@ -934,21 +937,32 @@ class ModbusGuiApp:
         f_Protect.columnconfigure(10, weight=1)
     # BlackBox related 
         self.column_accumulator_clear()
+        self.row_accumulator_add()
         f_BlackBox = ttk.LabelFrame(root, text="BlackBox Related", padding=12)
         f_BlackBox.pack(fill="x", pady=(12, 0))
         ttk.Button(f_BlackBox, text="R_BlackBox", command=self.send_r_blackbox_command, width=12).grid(
-            row=0, column=self.column_accumulator_add_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_BlackBox, textvariable=self.response_blackbox_r_var, width=100, state="readonly").grid(
-            row=0, column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
         )
 
         self.column_accumulator_clear()
+        self.row_accumulator_add()
+        ttk.Button(f_BlackBox, text="R_BlackBox_merge", command=self.send_r_merged_blackbox_command, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Entry(f_BlackBox, textvariable=self.response_blackbox_merged_r_var, width=160, state="readonly").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(12, 8), pady=(8, 0), sticky="w"
+        )
+
+        self.column_accumulator_clear()
+        self.row_accumulator_add()
         ttk.Button(f_BlackBox, text="R_ZCD_threshold", command=self.send_r_ZCThreshold_command, width=12).grid(
-            row=1, column=self.column_accumulator_add_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         ttk.Entry(f_BlackBox, textvariable=self.response_ZCThreshold_r_var, width=100, state="readonly").grid(
-            row=1, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
         )
         f_BlackBox.columnconfigure(10, weight=1)
     # Tab Lab ###############################
@@ -1915,6 +1929,19 @@ class ModbusGuiApp:
             args=(frame, "R_blackbox sent", self._handle_blackbox_read_response),
             daemon=True,
         ).start()
+    def send_r_merged_blackbox_command(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        request = bytearray.fromhex(Read_Addr_Merged_BlackBox)
+        self.fill_bytes0_device(request)
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "R_m_blackbox sent", self._handle_merged_blackbox_read_response),
+            daemon=True,
+        ).start()
     def _send_frame_worker(
         self,
         frame: bytes,
@@ -2048,7 +2075,45 @@ class ModbusGuiApp:
         str = f"Fault:{parse_Fault_Code}({Fault_Code}), t1:{t1_0C1}, t2:{t2_0C1}, t3:{t3_0C1}, t4:{t4_0C1}, ac_volRms_0V1:{ac_volRms_0V1}, vBus_0V1:{vBus_0V1}"
         self.root.after(0, lambda: self.response_blackbox_r_var.set(str))
         # self.root.after(0, lambda: self.response_blackbox_r_var.set(f"Log_Counts:{Log_Counts}, Error:{Error_Code}, Warn:{Warning_Code}, Fault:{parse_Fault_Code}({Fault_Code})"))
+    def _handle_merged_blackbox_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+        idx = 6
+        error_code_0 = parse_u16_index_read_response(response, idx)
+        parse_Fault_Code = decode_faults(error_code_0)
+        idx += 2
+        error_code_1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        first_error_code_0 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        first_error_code_1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        error_ac_input_voltage = parse_u16_index_read_response(response, idx)
+        idx += 2
+        error_vbus_voltage = parse_u16_index_read_response(response, idx)
+        idx += 2
+        number_of_ac_power_cycles = parse_u16_index_read_response(response, idx)
+        idx += 2
+        number_of_ac_outages = parse_u16_index_read_response(response, idx)
+        idx += 2
+        input_voltage = parse_u16_index_read_response(response, idx)
+        idx += 2
+        output_voltage = parse_u16_index_read_response(response, idx)
+        idx += 2
+        temp1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        temp2 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        temp3 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        temp4 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        input_current_il1 = parse_u16_index_read_response(response, idx)
+        idx += 2
+        input_current_il2 = parse_u16_index_read_response(response, idx)
 
+        str = f"Fault:{parse_Fault_Code}({error_code_0}), e1:{error_code_1}, fe0:{first_error_code_0}, fe1:{first_error_code_1}, eVin:{error_ac_input_voltage}, eVOut:{error_vbus_voltage}, ACcycle:{number_of_ac_power_cycles}, ACoutN:{number_of_ac_outages}, Vin:{input_voltage}, VOut:{output_voltage}, t1:{temp1}, t2:{temp2}, t3:{temp3}, t4:{temp4}, iL1:{input_current_il1}, iL2:{input_current_il2}"
+        self.root.after(0, lambda: self.response_blackbox_merged_r_var.set(str))
     def _handle_pwm_duty_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
