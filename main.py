@@ -2115,9 +2115,9 @@ class ModbusGuiApp:
         idx += 2
         temp4 = parse_u16_index_read_response(response, idx)
         idx += 2
-        input_current_il1 = parse_i16_index_read_response(response, idx)
+        input_current_il1 = parse_u16_index_read_response(response, idx)
         idx += 2
-        input_current_il2 = parse_i16_index_read_response(response, idx)
+        input_current_il2 = parse_u16_index_read_response(response, idx)
 
         str = f"Fault:{parse_Fault_Code}({error_code_0}), e1:{error_code_1}, fe0:{first_error_code_0}, fe1:{first_error_code_1}, eVin:{error_ac_input_voltage}, eVOut:{error_vbus_voltage}, ACcycle:{number_of_ac_power_cycles}, ACoutN:{number_of_ac_outages}, Vin:{input_voltage}, VOut:{output_voltage}, t1:{temp1}, t2:{temp2}, t3:{temp3}, t4:{temp4}, iL1:{input_current_il1}, iL2:{input_current_il2}"
         self.root.after(0, lambda: self.response_blackbox_merged_r_var.set(str))
