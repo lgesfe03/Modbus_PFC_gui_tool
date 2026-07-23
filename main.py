@@ -65,10 +65,9 @@ INPUT_VIRTUAL_VAC_HZ_MIN = 1
 INPUT_VIRTUAL_VAC_HZ_MAX = 90
 INPUT_VIRTUAL_VBUS_MIN = 0
 INPUT_VIRTUAL_VBUS_MAX = 4095
-INPUT_AUTO_RESTART_V_DEVIATION_MIN = -100
-INPUT_AUTO_RESTART_V_DEVIATION_MAX = -40
-INPUT_AUTO_RESTART_DURATION_MIN = 25
-INPUT_AUTO_RESTART_DURATION_MAX = 2000
+
+AUTO_RESTART_TABLE_DEVIATION = [-100, -90, -80, -70, -60, -50, -40]
+AUTO_RESTART_TABLE_DUTAION = [25, 40, 60, 90, 130, 200, 280, 400, 600, 900, 1300, 2000]
 # Lookup tables (same values as in the C code)
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
@@ -532,8 +531,6 @@ class ModbusGuiApp:
         self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
         self.input_virtual_vac_drop_w_var = tk.StringVar(value="0")
         self.input_virtual_vbus_w_var = tk.StringVar(value="0")
-        self.input_auto_restart_v_deviation_w_var = tk.StringVar(value=INPUT_AUTO_RESTART_V_DEVIATION_MAX)
-        self.input_auto_restart_v_duration_w_var = tk.StringVar(value=INPUT_AUTO_RESTART_DURATION_MAX)
 
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
@@ -1262,13 +1259,16 @@ class ModbusGuiApp:
         )
         ttk.Label(f_virtual_VAC, text="V deviation:").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
-        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_AUTO_RESTART_V_DEVIATION_MIN , to=INPUT_AUTO_RESTART_V_DEVIATION_MAX, textvariable=self.input_auto_restart_v_deviation_w_var, width=12)
-        self.fault_spin.grid(
+        self.combo_auto_restart_deviation = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DEVIATION, state="readonly")
+        self.combo_auto_restart_deviation.current(0)
+        self.combo_auto_restart_deviation.grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+        
         ttk.Label(f_virtual_VAC, text="Duration (Unit ms)").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
-        self.fault_spin = ttk.Spinbox(f_virtual_VAC, from_=INPUT_AUTO_RESTART_DURATION_MIN, to=INPUT_AUTO_RESTART_DURATION_MAX, textvariable=self.input_auto_restart_v_duration_w_var, width=12)
-        self.fault_spin.grid(
+        self.combo_auto_restart_duration = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DUTAION, state="readonly")
+        self.combo_auto_restart_duration.current(0)
+        self.combo_auto_restart_duration.grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         
         self.row_accumulator_add()
@@ -1419,19 +1419,16 @@ class ModbusGuiApp:
         #     messagebox.showwarning("Not connected", "Please connect to a COM port first.")
         #     return
 
-        int_input1 = self.input_value_check(self.input_auto_restart_v_deviation_w_var, INPUT_AUTO_RESTART_V_DEVIATION_MAX, INPUT_AUTO_RESTART_V_DEVIATION_MIN)
-        abs_int_input1 = abs(int_input1)
-        int_input2 = self.input_value_check(self.input_auto_restart_v_duration_w_var, INPUT_AUTO_RESTART_DURATION_MAX, INPUT_AUTO_RESTART_DURATION_MIN)
-        if int_input2 < 0:
-            return
+        input_auto_restart_v_deviation = abs(int(self.combo_auto_restart_deviation.get()))
+        input_auto_restart_v_duration = int(self.combo_auto_restart_duration.get())
         
         request = bytearray.fromhex(Write_VIRTUAL_AUTO_RESTART)
         self.fill_bytes0_device(request)
 
-        request[6] = (abs_int_input1 >> 8) & 0xFF
-        request[7] = abs_int_input1 & 0xFF
-        request[8] = (int_input2 >> 8) & 0xFF
-        request[9] = int_input2 & 0xFF
+        request[6] = (input_auto_restart_v_deviation >> 8) & 0xFF
+        request[7] = input_auto_restart_v_deviation & 0xFF
+        request[8] = (input_auto_restart_v_duration >> 8) & 0xFF
+        request[9] = input_auto_restart_v_duration & 0xFF
 
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
