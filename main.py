@@ -45,7 +45,7 @@ Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
 Write_VIRTUAL_VAC_LINE_DROP = "03 06 04 30 00 01 00 " #test on EVM virtual VAC line drop, unit pi
 Write_VIRTUAL_VBUS = "03 06 04 31 00 02 00 00 " #test on EVM virtual VBUS 0~4095 (0V~529V)
-Write_VIRTUAL_AUTO_RESTART = "03 06 04 32 00 04 00 00 00 00" #test on EVM 
+Write_VIRTUAL_AUTO_RESTART = "03 06 04 2F 00 06 00 00 00 00 00 00" #test on EVM 
 
 # Constant
 DATA_LENGTH_INDEX1 = 4
@@ -529,7 +529,7 @@ class ModbusGuiApp:
         self.input_virtual_vac_hz_r_var = tk.StringVar(value="0")
         self.input_virtual_vac_rms_w_var = tk.StringVar(value="230")
         self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
-        self.input_virtual_vac_drop_w_var = tk.StringVar(value="0")
+        self.input_virtual_vac_drop_w_var = tk.StringVar(value="2")
         self.input_virtual_vbus_w_var = tk.StringVar(value="0")
 
     def variable_reset(self) -> None:
@@ -1259,14 +1259,14 @@ class ModbusGuiApp:
         )
         ttk.Label(f_virtual_VAC, text="V deviation:").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
-        self.combo_auto_restart_deviation = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DEVIATION, state="readonly")
+        self.combo_auto_restart_deviation = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DEVIATION, state="readonly", width=12)
         self.combo_auto_restart_deviation.current(0)
         self.combo_auto_restart_deviation.grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
         
         ttk.Label(f_virtual_VAC, text="Duration (Unit ms)").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
-        self.combo_auto_restart_duration = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DUTAION, state="readonly")
+        self.combo_auto_restart_duration = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DUTAION, state="readonly", width=12)
         self.combo_auto_restart_duration.current(0)
         self.combo_auto_restart_duration.grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
@@ -1421,14 +1421,24 @@ class ModbusGuiApp:
 
         input_auto_restart_v_deviation = abs(int(self.combo_auto_restart_deviation.get()))
         input_auto_restart_v_duration = int(self.combo_auto_restart_duration.get())
+
+        int_vac_rms_value = self.input_value_check(self.input_virtual_vac_rms_w_var, INPUT_VIRTUAL_VAC_RMS_MAX, INPUT_VIRTUAL_VAC_RMS_MIN)
+        if int_vac_rms_value < 0:
+            return
+        int_vac_hz_value = self.input_value_check(self.input_virtual_vac_hz_w_var, INPUT_VIRTUAL_VAC_HZ_MAX, INPUT_VIRTUAL_VAC_HZ_MIN)
+        if int_vac_hz_value < 0:
+            return
         
         request = bytearray.fromhex(Write_VIRTUAL_AUTO_RESTART)
         self.fill_bytes0_device(request)
 
-        request[6] = (input_auto_restart_v_deviation >> 8) & 0xFF
-        request[7] = input_auto_restart_v_deviation & 0xFF
-        request[8] = (input_auto_restart_v_duration >> 8) & 0xFF
-        request[9] = input_auto_restart_v_duration & 0xFF
+        int_vac_rms_cross_deviation = int(int_vac_rms_value * (1-(input_auto_restart_v_deviation / 100)))
+        request[6] = (int_vac_rms_cross_deviation >> 8) & 0xFF
+        request[7] = int_vac_rms_cross_deviation & 0xFF
+        request[8] = (int_vac_hz_value >> 8) & 0xFF
+        request[9] = int_vac_hz_value & 0xFF
+        request[10] = (input_auto_restart_v_duration >> 8) & 0xFF
+        request[11] = input_auto_restart_v_duration & 0xFF
 
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
