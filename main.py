@@ -1257,7 +1257,7 @@ class ModbusGuiApp:
         ttk.Button(f_virtual_VAC, text="Auto_Restart", command=self.send_w_auto_restart_command, width=12).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
-        ttk.Label(f_virtual_VAC, text="V deviation:").grid(
+        ttk.Label(f_virtual_VAC, text="V deviation (Unit %)").grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0))
         self.combo_auto_restart_deviation = ttk.Combobox(f_virtual_VAC, values=AUTO_RESTART_TABLE_DEVIATION, state="readonly", width=12)
         self.combo_auto_restart_deviation.current(0)
