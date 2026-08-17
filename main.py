@@ -95,10 +95,12 @@ class _Relay_Mode(Enum):
     
 class _SubsystemState_Aux_Mode(Enum):
     # vAC check
-    VAC_WAIT_VAC_STABLE = 0
+    VAC_CHK_AC_LOSSING = 0
+    VAC_WAIT_VAC_STABLE = auto()
     VAC_CHK_PLL_LOCKED = auto()
     VAC_CHK_VOLT_BRNIN = auto()
     VAC_PRECHK_TZ_OCP = auto()
+    VAC_CHK_ACPWR_OK = auto()
     VAC_CHK_ACPWR_LOST_BEEN_RESETED = auto()
     VAC_CHK_ACIN_OVP_OFP_UFP = auto()
     # Unit check
