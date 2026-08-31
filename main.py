@@ -527,7 +527,66 @@ class ModbusGuiApp:
 
         self.response_blackbox_r_var = tk.StringVar(value="")
         self.response_blackbox_merged_r_var = tk.StringVar(value="")
-        self.response_pvt2_info_all_r_var = tk.StringVar(value="")
+
+        self.response_pvt2_u16_Main_Control_Status_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_Main_Error_Status_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_Main_Error_Mark_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_Main_Error_Result_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_CLA_Error_Status_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_CLA_Error_Mark_r_var = tk.StringVar(value="")
+        self.response_pvt2_u16_CLA_Error_Result_r_var = tk.StringVar(value="")
+        # self.response_pvt2_f32_Advance_Parameter_Length_r_var = tk.StringVar(value="")
+        # self.response_pvt2_f32_Advance_Password_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Main_Loop_Elapsed_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Main_Loop_Maximum_Elapsed_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_C28_Isr_Loop_Elapsed_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_C28_Isr_Loop_Maximum_Elapsed_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_CLA_Task_Elapse_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_CLA_Task_Maximum_Elapse_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Time_Task_Elapsed_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Voltage_Input_RMS_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Input_RMS1_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Input_RMS2_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Voltage_Output_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Voltage_Loop_Kp_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Voltage_Loop_Ki_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Loop1_Kp_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Loop1_Ki_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Loop2_Kp_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Current_Loop2_Ki_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Kboost_Gain_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Kboost_Maximum_r_var = tk.StringVar(value="")
+        self._PVT2_FIELD = [		
+            ("Main_Control_Status", self.response_pvt2_u16_Main_Control_Status_r_var	),
+            ("Main_Error_Status", self.response_pvt2_u16_Main_Error_Status_r_var	),
+            ("Main_Error_Mark", self.response_pvt2_u16_Main_Error_Mark_r_var	),
+            ("Main_Error_Result", self.response_pvt2_u16_Main_Error_Result_r_var	),
+            ("CLA_Error_Status", self.response_pvt2_u16_CLA_Error_Status_r_var	),
+            ("CLA_Error_Mark", self.response_pvt2_u16_CLA_Error_Mark_r_var	),
+            ("CLA_Error_Result", self.response_pvt2_u16_CLA_Error_Result_r_var	),
+            # ("Advance_Parameter_Length", self.response_pvt2_f32_Advance_Parameter_Length_r_var	),
+            # ("Advance_Password", self.response_pvt2_f32_Advance_Password_r_var	),
+            ("Main_Loop_Elapsed_Usec", self.response_pvt2_f32_Main_Loop_Elapsed_Usec_r_var	),
+            ("Main_Loop_Maximum_Elapsed_Usec", self.response_pvt2_f32_Main_Loop_Maximum_Elapsed_Usec_r_var	),
+            ("C28_Isr_Loop_Elapsed_Usec", self.response_pvt2_f32_C28_Isr_Loop_Elapsed_Usec_r_var	),
+            ("C28_Isr_Loop_Maximum_Elapsed_Usec", self.response_pvt2_f32_C28_Isr_Loop_Maximum_Elapsed_Usec_r_var	),
+            ("CLA_Task_Elapse_Usec", self.response_pvt2_f32_CLA_Task_Elapse_Usec_r_var	),
+            ("CLA_Task_Maximum_Elapse_Usec", self.response_pvt2_f32_CLA_Task_Maximum_Elapse_Usec_r_var	),
+            ("Time_Task_Elapsed_Usec", self.response_pvt2_f32_Time_Task_Elapsed_Usec_r_var	),
+            ("Voltage_Input_RMS", self.response_pvt2_f32_Voltage_Input_RMS_r_var	),
+            ("Current_Input_RMS1", self.response_pvt2_f32_Current_Input_RMS1_r_var	),
+            ("Current_Input_RMS2", self.response_pvt2_f32_Current_Input_RMS2_r_var	),
+            ("Voltage_Output", self.response_pvt2_f32_Voltage_Output_r_var	),
+            ("Voltage_Loop_Kp", self.response_pvt2_f32_Voltage_Loop_Kp_r_var	),
+            ("Voltage_Loop_Ki", self.response_pvt2_f32_Voltage_Loop_Ki_r_var	),
+            ("Current_Loop1_Kp", self.response_pvt2_f32_Current_Loop1_Kp_r_var	),
+            ("Current_Loop1_Ki", self.response_pvt2_f32_Current_Loop1_Ki_r_var	),
+            ("Current_Loop2_Kp", self.response_pvt2_f32_Current_Loop2_Kp_r_var	),
+            ("Current_Loop2_Ki", self.response_pvt2_f32_Current_Loop2_Ki_r_var	),
+            ("Kboost_Gain", self.response_pvt2_f32_Kboost_Gain_r_var	),
+            ("Kboost_Maximum", self.response_pvt2_f32_Kboost_Maximum_r_var	),
+        ]
+
 
         self.input_fault_code_w_var = tk.StringVar(value="0")
         self.input_fault_code_r_var = tk.StringVar(value="0")
@@ -606,6 +665,8 @@ class ModbusGuiApp:
         self.input_virtual_vac_rms_r_var.set("")
         self.input_virtual_vac_hz_r_var.set("")
 
+        for i, (label_text, var) in enumerate(self._PVT2_FIELD):
+            var.set("")
     def row_accumulator_add(self) -> None:
         self.row_accumulate += 1
     def row_accumulator_get(self) -> None:
@@ -1297,15 +1358,29 @@ class ModbusGuiApp:
     # Tab PVT2 ###############################
         root = tab_pvt2
         # Translate related 
+        self.row_accumulator_clear()
         self.column_accumulator_clear()
         f_tab_pvt2 = ttk.LabelFrame(root, text="PVT2 debug", padding=12)
         f_tab_pvt2.pack(fill="x", pady=(12, 0))        
         ttk.Button(f_tab_pvt2, text="Read all", command=self.send_r_pvt2_debug_all, width=12).grid(
-            row=0, column=self.column_accumulator_add_get(), sticky="w"
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
-        ttk.Entry(f_tab_pvt2, textvariable=self.response_pvt2_info_all_r_var, width=180, state="readonly").grid(
-            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
-        )
+        self.row_accumulator_add()
+        self.column_accumulator_clear()
+        for i, (label_text, var) in enumerate(self._PVT2_FIELD):
+            ttk.Label(f_tab_pvt2, text=label_text).grid(
+                row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
+            )
+            ttk.Entry(f_tab_pvt2, textvariable=var, width=18, state="readonly").grid(
+                row=self.row_accumulator_get(), column=self.column_accumulator_add_get(),
+                padx=(12, 8), pady=(8, 0), sticky="w"
+            )
+            if(((i%2)>=1)):
+                self.row_accumulator_add()
+                self.column_accumulator_clear()
+        f_tab_pvt2.columnconfigure(10, weight=1)
+        self.row_accumulator_clear()
+        self.column_accumulator_clear()
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         ports = sorted(ports)
@@ -2279,13 +2354,17 @@ class ModbusGuiApp:
     def _handle_pvt2_all_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-
         idx = 6
-        f32_1 = parse_f32_index_read_response(response, idx)
-        idx += 4
-        Main_ControlStatus = parse_u16_index_read_response(response, idx)
-               
-        self.root.after(0, lambda: self.response_pvt2_info_all_r_var.set(f"f32_1:{f32_1}, Main_ControlStatus:{Main_ControlStatus}"))
+        # print(f"len(self._PVT2_FIELD)={len(self._PVT2_FIELD)}")
+        for i, (label_text, var) in  reversed(list(enumerate(self._PVT2_FIELD))):
+            if i < 7:
+                var.set(parse_u16_index_read_response(response, idx))
+                # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
+                idx += 2
+            else:
+                var.set(parse_f32_index_read_response(response, idx))
+                # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
+                idx += 4
 
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
