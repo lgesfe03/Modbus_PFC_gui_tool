@@ -40,6 +40,7 @@ Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 Read_Addr_Merged_BlackBox = "03 03 00 A1 00 20"
+Read_Addr_PVT2_info_all= "03 03 00 B0 00 2F"
 
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
@@ -47,6 +48,7 @@ Write_VIRTUAL_VAC_LINE_DROP = "03 06 04 30 00 01 00 " #test on EVM virtual VAC l
 Write_VIRTUAL_VBUS = "03 06 04 31 00 02 00 00 " #test on EVM virtual VBUS 0~4095 (0V~529V)
 Write_VIRTUAL_AUTO_RESTART = "03 06 04 2F 00 06 00 00 00 00 00 00" #test on EVM 
 
+Mock_response_f32_u16 = bytes.fromhex("03 03 00 B0 00 06 3D CC CC CD 01 02")
 # Constant
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
@@ -525,6 +527,8 @@ class ModbusGuiApp:
 
         self.response_blackbox_r_var = tk.StringVar(value="")
         self.response_blackbox_merged_r_var = tk.StringVar(value="")
+        self.response_pvt2_info_all_r_var = tk.StringVar(value="")
+
         self.input_fault_code_w_var = tk.StringVar(value="0")
         self.input_fault_code_r_var = tk.StringVar(value="0")
         self.input_virtual_vac_rms_r_var = tk.StringVar(value="0")
@@ -648,10 +652,12 @@ class ModbusGuiApp:
         tab_basic = ttk.Frame(notebook)
         tab_lab = ttk.Frame(notebook)
         tab_tool = ttk.Frame(notebook)
+        tab_pvt2 = ttk.Frame(notebook)
         
         notebook.add(tab_basic, text="Basic")
         notebook.add(tab_lab, text="Lab")
         notebook.add(tab_tool, text="Tool")
+        notebook.add(tab_pvt2, text="PVT2")
 
     # Tab basic
         root = tab_basic
@@ -1287,7 +1293,19 @@ class ModbusGuiApp:
 
         self.row_accumulator_clear()
         # f_virtual_VAC.columnconfigure(10, weight=1)
-        
+    
+    # Tab PVT2 ###############################
+        root = tab_pvt2
+        # Translate related 
+        self.column_accumulator_clear()
+        f_tab_pvt2 = ttk.LabelFrame(root, text="PVT2 debug", padding=12)
+        f_tab_pvt2.pack(fill="x", pady=(12, 0))        
+        ttk.Button(f_tab_pvt2, text="Read all", command=self.send_r_pvt2_debug_all, width=12).grid(
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Entry(f_tab_pvt2, textvariable=self.response_pvt2_info_all_r_var, width=180, state="readonly").grid(
+            row=0, column=self.column_accumulator_add_get(), padx=(8, 0), pady=(8, 0), sticky="w"
+        )
     def refresh_ports(self) -> None:
         ports = [port.device for port in list_ports.comports()]
         ports = sorted(ports)
@@ -1723,7 +1741,23 @@ class ModbusGuiApp:
             args=(frame, "R_GPIO sent", self._handle_leg_read_response),
             daemon=True,
         ).start()
+    def send_r_pvt2_debug_all(self) -> None:
+            if not self.serial_port or not self.serial_port.is_open:
+                messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+                return
     
+            request = bytearray.fromhex(Read_Addr_PVT2_info_all)
+            self.fill_bytes0_device(request)
+            frame = bytes(request) + build_modbus_crc(bytes(request))
+    
+            debug_print_tx(frame)
+            # self._handle_pvt2_all_read_response(Mock_response_f32_u16)
+            threading.Thread(
+                target=self._send_frame_worker,
+                args=(frame, "R_PVT2 info sent", self._handle_pvt2_all_read_response),
+                daemon=True,
+            ).start()
+        
     def send_w_leg_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -2242,6 +2276,17 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_leg_HFLegB_EN_r_var.set(HFLegB_EN))
         self.root.after(0, lambda: self.response_leg_OPL_LFLeg_EN_r_var.set(OPL_LFLeg_EN))
         self.root.after(0, lambda: self.response_leg_OPL_HFLeg_SR_EN_r_var.set(OPL_HFLeg_SR_EN))
+    def _handle_pvt2_all_read_response(self, response: bytes) -> None:
+        response_text = format_hex(response) if response else "(no response)"
+        debug_print_rx(response)
+
+        idx = 6
+        f32_1 = parse_f32_index_read_response(response, idx)
+        idx += 4
+        Main_ControlStatus = parse_u16_index_read_response(response, idx)
+               
+        self.root.after(0, lambda: self.response_pvt2_info_all_r_var.set(f"f32_1:{f32_1}, Main_ControlStatus:{Main_ControlStatus}"))
+
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
