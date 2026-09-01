@@ -41,6 +41,12 @@ Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 Read_Addr_Merged_BlackBox = "03 03 00 A1 00 20"
 Read_Addr_PVT2_info_all= "03 03 00 B0 00 2F"
+Write_Addr_C28_Error_Mark = "03 06 04 C0 00 02 00 00"
+Write_Addr_C28_Task_Length_ElapsedUsec = "03 06 04 C1 00 02 00 00"
+Write_Addr_Voltage_Current_Input_RMS = "03 06 04 C2 00 04 00 00 00 00"
+Write_Addr_Voltage_Output = "03 06 04 C4 00 04 00 00 00 00"
+Write_Addr_Voltage_Current_Kp_Ki = "03 06 04 C5 00 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+Write_Addr_Kboost = "03 06 04 C6 00 08 00 00 00 00 00 00 00 00"
 
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
@@ -67,7 +73,10 @@ INPUT_VIRTUAL_VAC_HZ_MIN = 1
 INPUT_VIRTUAL_VAC_HZ_MAX = 90
 INPUT_VIRTUAL_VBUS_MIN = 0
 INPUT_VIRTUAL_VBUS_MAX = 4095
-
+INPUT_V16_MIN = 0
+INPUT_V16_MAX = 65535
+INPUT_F32_MIN = -3.4028235e+38
+INPUT_F32_MAX = 3.4028235e+38
 AUTO_RESTART_TABLE_DEVIATION = [-100, -90, -80, -70, -60, -50, -40]
 AUTO_RESTART_TABLE_DUTAION = [25, 40, 60, 90, 130, 200, 280, 400, 600, 900, 1300, 2000]
 # Lookup tables (same values as in the C code)
@@ -1422,8 +1431,8 @@ class ModbusGuiApp:
             ttk.Label(f_tab_pvt2_w, text=label_text).grid(
                 row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
             )
-            self.voltage_spin = ttk.Spinbox(f_tab_pvt2_w, textvariable=var, width=10)
-            self.voltage_spin.grid(row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+            self.input_spin = ttk.Spinbox(f_tab_pvt2_w, textvariable=var, width=10)
+            self.input_spin.grid(row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
             if(((i%2)>=1)):
                 self.row_accumulator_add()
                 self.column_accumulator_clear()
@@ -1500,6 +1509,13 @@ class ModbusGuiApp:
             return -2
         else:
             return value_input
+    def input_float32_check(self, var: float) -> float:
+        try:
+            value_input = float(var.get().strip())
+        except ValueError:
+            messagebox.showwarning("Invalid value", f"must be a number.")
+            return -1
+        return float(value_input)
     def send_r_version_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
@@ -1956,10 +1972,68 @@ class ModbusGuiApp:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
+        u16_value = self.input_value_check(self.response_pvt2_u16_Main_Error_Mark_w_var, INPUT_V16_MAX, INPUT_V16_MIN)
+        if u16_value < 0:
+            return
+        
+        request = bytearray.fromhex(Write_Addr_C28_Error_Mark)
+        self.fill_bytes0_device(request)
+
+        request[6] = (u16_value >> 8) & 0xFF
+        request[7] = u16_value & 0xFF
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_ sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
     def send_w_PVT2_CLA_Error_Mark(self) -> None:
-        return
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        u16_value = self.input_value_check(self.response_pvt2_u16_CLA_Error_Mark_w_var, INPUT_V16_MAX, INPUT_V16_MIN)
+        if u16_value < 0:
+            return
+        
+        request = bytearray.fromhex(Write_Addr_C28_Task_Length_ElapsedUsec)
+        self.fill_bytes0_device(request)
+
+        request[6] = (u16_value >> 8) & 0xFF
+        request[7] = u16_value & 0xFF
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_ sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
     def send_w_PVT2_Time_Task_Elapsed_Usec(self) -> None:
-        return
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        f32_value = self.input_float32_check(self.response_pvt2_f32_Time_Task_Elapsed_Usec_w_var)
+        
+        request = bytearray.fromhex(Write_Addr_Voltage_Current_Input_RMS)
+        self.fill_bytes0_device(request)
+
+        # float32 -> 4 bytes
+        f32_bytes = struct.pack('>f', f32_value)   # >f = big-endian float32
+
+        request[6] = f32_bytes[0]
+        request[7] = f32_bytes[1]
+        request[8] = f32_bytes[2]
+        request[9] = f32_bytes[3]
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_ sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
     def send_r_fault_code_command(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
