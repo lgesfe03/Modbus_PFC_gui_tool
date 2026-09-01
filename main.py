@@ -59,6 +59,7 @@ Mock_response_f32_u16 = bytes.fromhex("03 03 00 B0 00 06 3D CC CC CD 01 02")
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
 FLOAT_ROUND = 2
+PERDIODIC_READ_INTERVAL_MS = 100
 VBUS_MAX_VOLTAGE = 529.2375
 # Input limit
 INPUT_CURRENT_MIN = 0
@@ -537,6 +538,8 @@ class ModbusGuiApp:
         self.response_blackbox_r_var = tk.StringVar(value="")
         self.response_blackbox_merged_r_var = tk.StringVar(value="")
 
+        self.input_pvt2_read_periodically_var = tk.IntVar(value=0)
+
         self.response_pvt2_u16_Main_Control_Status_r_var = tk.StringVar(value="")
         self.response_pvt2_u16_Main_Error_Status_r_var = tk.StringVar(value="")
         self.response_pvt2_u16_Main_Error_Mark_r_var = tk.StringVar(value="")
@@ -621,9 +624,9 @@ class ModbusGuiApp:
             # ("Voltage_Output", self.response_pvt2_f32_Voltage_Output_w_var, self.send_w_PVT2_Voltage_Output),
             # ("Voltage_Loop_Kp", self.response_pvt2_f32_Voltage_Loop_Kp_w_var, self.send_w_PVT2_Voltage_Loop_Kp),
             # ("Voltage_Loop_Ki", self.response_pvt2_f32_Voltage_Loop_Ki_w_var, self.send_w_PVT2_Voltage_Loop_Ki),
-            # ("Cuurent_Loop1_Kp", self.response_pvt2_f32_Cuurent_Loop1_Kp_w_var, self.send_w_PVT2_Cuurent_Loop1_Kp),
+            # ("Current_Loop1_Kp", self.response_pvt2_f32_Current_Loop1_Kp_w_var, self.send_w_PVT2_Current_Loop1_Kp),
             # ("Current_Loop1_Ki", self.response_pvt2_f32_Current_Loop1_Ki_w_var, self.send_w_PVT2_Current_Loop1_Ki),
-            # ("Cuurent_Loop2_Kp", self.response_pvt2_f32_Cuurent_Loop2_Kp_w_var, self.send_w_PVT2_Cuurent_Loop2_Kp),
+            # ("Current_Loop2_Kp", self.response_pvt2_f32_Current_Loop2_Kp_w_var, self.send_w_PVT2_Current_Loop2_Kp),
             # ("Current_Loop2_Ki", self.response_pvt2_f32_Current_Loop2_Ki_w_var, self.send_w_PVT2_Current_Loop2_Ki),
             # ("Kboost_Gain", self.response_pvt2_f32_Kboost_Gain_w_var, self.send_w_PVT2_Kboost_Gain),
             # ("Kboost_Maximum", self.response_pvt2_f32_Kboost_Maximum_w_var, self.send_w_PVT2_Kboost_Maximum),
@@ -1404,6 +1407,12 @@ class ModbusGuiApp:
         f_tab_pvt2_r = ttk.LabelFrame(root, text="PVT2 debug Read", padding=12)
         f_tab_pvt2_r.pack(fill="x", pady=(12, 0))        
         ttk.Button(f_tab_pvt2_r, text="Read all", command=self.send_r_pvt2_debug_all, width=12).grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Label(f_tab_pvt2_r, text="send periodically").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
+            )
+        ttk.Checkbutton(f_tab_pvt2_r, variable=self.input_pvt2_read_periodically_var, onvalue=1, offvalue=0,).grid(
             row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
         )
         self.row_accumulator_add()
@@ -2486,19 +2495,25 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_leg_OPL_LFLeg_EN_r_var.set(OPL_LFLeg_EN))
         self.root.after(0, lambda: self.response_leg_OPL_HFLeg_SR_EN_r_var.set(OPL_HFLeg_SR_EN))
     def _handle_pvt2_all_read_response(self, response: bytes) -> None:
-        response_text = format_hex(response) if response else "(no response)"
-        debug_print_rx(response)
-        idx = 6
-        # print(f"len(self._PVT2_FIELD_R)={len(self._PVT2_FIELD_R)}")
-        for i, (label_text, var) in  reversed(list(enumerate(self._PVT2_FIELD_R))):
-            if i < 7:
-                var.set(parse_u16_index_read_response(response, idx))
-                # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
-                idx += 2
-            else:
-                var.set(parse_f32_index_read_response(response, idx))
-                # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
-                idx += 4
+        try:
+            response_text = format_hex(response) if response else "(no response)"
+            debug_print_rx(response)
+            idx = 6
+            # print(f"len(self._PVT2_FIELD_R)={len(self._PVT2_FIELD_R)}")
+            for i, (label_text, var) in  reversed(list(enumerate(self._PVT2_FIELD_R))):
+                if i < 7:
+                    var.set(parse_u16_index_read_response(response, idx))
+                    # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
+                    idx += 2
+                else:
+                    var.set(parse_f32_index_read_response(response, idx))
+                    # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
+                    idx += 4
+            if self.input_pvt2_read_periodically_var.get() == 1:
+                self.root.after(PERDIODIC_READ_INTERVAL_MS, self.send_r_pvt2_debug_all)
+            pass
+        finally:
+            print(f"_handle_pvt2_all_read_response error")
 
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
