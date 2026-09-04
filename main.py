@@ -42,7 +42,7 @@ Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 Read_Addr_Merged_BlackBox = "03 03 00 A1 00 20"
 Read_Addr_PVT2_info_all= "03 03 00 B0 00 2F"
 Write_Addr_C28_Error_Mark = "03 06 04 C0 00 02 00 00"
-Write_Addr_C28_Task_Length_ElapsedUsec = "03 06 04 C1 00 02 00 00"
+Write_Addr_C28_Task_Length_ElapsedUsec = "03 06 04 C2 00 04 00 00 00 00"
 Write_Addr_Voltage_Current_Input_RMS = "03 06 04 C2 00 04 00 00 00 00"
 Write_Addr_Voltage_Output = "03 06 04 C4 00 04 00 00 00 00"
 Write_Addr_Voltage_Current_Kp_Ki = "03 06 04 C5 00 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
@@ -1479,6 +1479,9 @@ class ModbusGuiApp:
                 self.row_accumulator_add()
                 self.column_accumulator_clear()
 
+        ttk.Button(f_tab_pvt2_w, text="ClearMaxElapsed", command=self.send_w_PVT2_Clear_Task_MaxLength_ElapsedUsec, width=12, state="enabled").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
         f_tab_pvt2_w.columnconfigure(10, weight=1)
         self.row_accumulator_clear()
         self.column_accumulator_clear()
@@ -2039,7 +2042,7 @@ class ModbusGuiApp:
         if u16_value < 0:
             return
         
-        request = bytearray.fromhex(Write_Addr_C28_Task_Length_ElapsedUsec)
+        request = bytearray.fromhex(Write_Addr_C28_Error_Mark)
         self.fill_bytes0_device(request)
 
         request[6] = (u16_value >> 8) & 0xFF
@@ -2090,6 +2093,26 @@ class ModbusGuiApp:
             request[request_idx + 2] = f32_bytes[f32_idx + 2]
             request[request_idx + 3] = f32_bytes[f32_idx + 3]
             request_idx += 4
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "W_ sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
+    def send_w_PVT2_Clear_Task_MaxLength_ElapsedUsec(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+        
+        request = bytearray.fromhex(Write_Addr_C28_Task_Length_ElapsedUsec)
+        self.fill_bytes0_device(request)
+
+        request[6] = 0x00
+        request[7] = 0x00
+        request[8] = 0x00
+        request[9] = 0x00
 
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
