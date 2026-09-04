@@ -615,9 +615,9 @@ class ModbusGuiApp:
         self.response_pvt2_f32_Kboost_Gain_w_var = tk.StringVar(value="")
         self.response_pvt2_f32_Kboost_Maximum_w_var = tk.StringVar(value="")
         self._PVT2_FIELD_W = [
-            ("Main_Error_Mark", self.response_pvt2_u16_Main_Error_Mark_w_var, self.send_w_PVT2_Main_Error_Mark),
-            ("CLA_Error_Mark", self.response_pvt2_u16_CLA_Error_Mark_w_var, self.send_w_PVT2_CLA_Error_Mark),
-            ("Time_Task_Elapsed_Usec", self.response_pvt2_f32_Time_Task_Elapsed_Usec_w_var, self.send_w_PVT2_Time_Task_Elapsed_Usec),
+            # ("Main_Error_Mark", self.response_pvt2_u16_Main_Error_Mark_w_var, self.send_w_PVT2_Main_Error_Mark),
+            # ("CLA_Error_Mark", self.response_pvt2_u16_CLA_Error_Mark_w_var, self.send_w_PVT2_CLA_Error_Mark),
+            # ("Time_Task_Elapsed_Usec", self.response_pvt2_f32_Time_Task_Elapsed_Usec_w_var, self.send_w_PVT2_Time_Task_Elapsed_Usec),
             # ("Voltage_Input_RMS", self.response_pvt2_f32_Voltage_Input_RMS_w_var, self.send_w_PVT2_Voltage_Input_RMS),
             # ("Current_Input_RMS1", self.response_pvt2_f32_Current_Input_RMS1_w_var, self.send_w_PVT2_Current_Input_RMS1),
             # ("Current_Input_RMS2", self.response_pvt2_f32_Current_Input_RMS2_w_var, self.send_w_PVT2_Current_Input_RMS2),
@@ -640,7 +640,14 @@ class ModbusGuiApp:
         self.input_virtual_vac_hz_w_var = tk.StringVar(value="60")
         self.input_virtual_vac_drop_w_var = tk.StringVar(value="2")
         self.input_virtual_vbus_w_var = tk.StringVar(value="0")
-
+        self._PVT2_FIELD_KpKi = [
+            ("Voltage_Loop_Kp", self.response_pvt2_f32_Voltage_Loop_Kp_w_var),
+            ("Voltage_Loop_Ki", self.response_pvt2_f32_Voltage_Loop_Ki_w_var),
+            ("Current_Loop1_Kp", self.response_pvt2_f32_Current_Loop1_Kp_w_var),
+            ("Current_Loop1_Ki", self.response_pvt2_f32_Current_Loop1_Ki_w_var),
+            ("Current_Loop2_Kp", self.response_pvt2_f32_Current_Loop2_Kp_w_var),
+            ("Current_Loop2_Ki", self.response_pvt2_f32_Current_Loop2_Ki_w_var),
+        ]
     def variable_reset(self) -> None:
         self.response_fw_version_read_all_var.set("")
         # self.input_current_w_var.set("")
@@ -711,6 +718,13 @@ class ModbusGuiApp:
 
         for i, (label_text, var) in enumerate(self._PVT2_FIELD_R):
             var.set("")
+    def renew_variable_PVT2_KpKi_from_read(self) -> None:
+        self.response_pvt2_f32_Voltage_Loop_Kp_w_var.set(self.response_pvt2_f32_Voltage_Loop_Kp_r_var.get())
+        self.response_pvt2_f32_Voltage_Loop_Ki_w_var.set(self.response_pvt2_f32_Voltage_Loop_Ki_r_var.get())
+        self.response_pvt2_f32_Current_Loop1_Kp_w_var.set(self.response_pvt2_f32_Current_Loop1_Kp_r_var.get())
+        self.response_pvt2_f32_Current_Loop1_Ki_w_var.set(self.response_pvt2_f32_Current_Loop1_Ki_r_var.get())
+        self.response_pvt2_f32_Current_Loop2_Kp_w_var.set(self.response_pvt2_f32_Current_Loop2_Kp_r_var.get())
+        self.response_pvt2_f32_Current_Loop2_Ki_w_var.set(self.response_pvt2_f32_Current_Loop2_Ki_r_var.get())
     def row_accumulator_add(self) -> None:
         self.row_accumulate += 1
     def row_accumulator_get(self) -> None:
@@ -1433,10 +1447,29 @@ class ModbusGuiApp:
         f_tab_pvt2_w.pack(fill="x", pady=(12, 0))     
         self.row_accumulator_clear()
         self.column_accumulator_clear()
-        for i, (label_text, var, send_command) in enumerate(self._PVT2_FIELD_W):
-            ttk.Button(f_tab_pvt2_w, text=label_text, command=send_command, width=12, state="enabled").grid(
-                row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
-            )
+        # for i, (label_text, var, send_command) in enumerate(self._PVT2_FIELD_W):
+        #     ttk.Button(f_tab_pvt2_w, text=label_text, command=send_command, width=12, state="enabled").grid(
+        #         row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        #     )
+        #     ttk.Label(f_tab_pvt2_w, text=label_text).grid(
+        #         row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
+        #     )
+        #     self.input_spin = ttk.Spinbox(f_tab_pvt2_w, textvariable=var, width=10)
+        #     self.input_spin.grid(row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), padx=(8, 12), sticky="w")
+        #     if(((i%2)>=1)):
+        #         self.row_accumulator_add()
+        #         self.column_accumulator_clear()
+        self.row_accumulator_add()
+        self.column_accumulator_clear()
+        ttk.Button(f_tab_pvt2_w, text="VI_KpKi_all", command=self.send_w_PVT2_Voltage_Current_Kp_Ki, width=12, state="enabled").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        ttk.Button(f_tab_pvt2_w, text="Renew", command=self.renew_variable_PVT2_KpKi_from_read, width=12, state="enabled").grid(
+            row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w"
+        )
+        self.row_accumulator_add()
+        self.column_accumulator_clear()
+        for i, (label_text, var) in enumerate(self._PVT2_FIELD_KpKi):
             ttk.Label(f_tab_pvt2_w, text=label_text).grid(
                 row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
             )
@@ -2019,22 +2052,44 @@ class ModbusGuiApp:
             args=(frame, "W_ sent", self._handle_parse_current_write_response),
             daemon=True,
         ).start()
-    def send_w_PVT2_Time_Task_Elapsed_Usec(self) -> None:
+    def send_w_PVT2_Voltage_Current_Kp_Ki(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
             return
-        f32_value = self.input_float32_check(self.response_pvt2_f32_Time_Task_Elapsed_Usec_w_var)
+        for var in [self.response_pvt2_f32_Voltage_Loop_Kp_w_var, self.response_pvt2_f32_Voltage_Loop_Ki_w_var,
+                    self.response_pvt2_f32_Current_Loop1_Kp_w_var, self.response_pvt2_f32_Current_Loop1_Ki_w_var,
+                    self.response_pvt2_f32_Current_Loop2_Kp_w_var, self.response_pvt2_f32_Current_Loop2_Ki_w_var]:
+            try:
+                float(var.get().strip())
+            except ValueError:
+                messagebox.showwarning("Invalid value", f"must fill all fields with valid float numbers.")
+                return
+        f32_v_kp = self.input_float32_check(self.response_pvt2_f32_Voltage_Loop_Kp_w_var)
+        f32_v_ki = self.input_float32_check(self.response_pvt2_f32_Voltage_Loop_Ki_w_var)
+        f32_c1_kp = self.input_float32_check(self.response_pvt2_f32_Current_Loop1_Kp_w_var)
+        f32_c1_ki = self.input_float32_check(self.response_pvt2_f32_Current_Loop1_Ki_w_var)
+        f32_c2_kp = self.input_float32_check(self.response_pvt2_f32_Current_Loop2_Kp_w_var)
+        f32_c2_ki = self.input_float32_check(self.response_pvt2_f32_Current_Loop2_Ki_w_var)
         
-        request = bytearray.fromhex(Write_Addr_Voltage_Current_Input_RMS)
+        request = bytearray.fromhex(Write_Addr_Voltage_Current_Kp_Ki)
         self.fill_bytes0_device(request)
 
         # float32 -> 4 bytes
-        f32_bytes = struct.pack('>f', f32_value)   # >f = big-endian float32
+        v_kp_4bytes = struct.pack('>f', f32_v_kp)   # >f = big-endian float32
+        v_ki_4bytes = struct.pack('>f', f32_v_ki)
+        c1_kp_4bytes = struct.pack('>f', f32_c1_kp)
+        c1_ki_4bytes = struct.pack('>f', f32_c1_ki)
+        c2_kp_4bytes = struct.pack('>f', f32_c2_kp)
+        c2_ki_4bytes = struct.pack('>f', f32_c2_ki)
 
-        request[6] = f32_bytes[0]
-        request[7] = f32_bytes[1]
-        request[8] = f32_bytes[2]
-        request[9] = f32_bytes[3]
+        request_idx = 6
+        f32_idx = 0
+        for f32_bytes in [c2_ki_4bytes, c2_kp_4bytes, c1_ki_4bytes, c1_kp_4bytes, v_ki_4bytes, v_kp_4bytes]:
+            request[request_idx] = f32_bytes[f32_idx]
+            request[request_idx + 1] = f32_bytes[f32_idx + 1]
+            request[request_idx + 2] = f32_bytes[f32_idx + 2]
+            request[request_idx + 3] = f32_bytes[f32_idx + 3]
+            request_idx += 4
 
         frame = bytes(request) + build_modbus_crc(bytes(request))
         debug_print_tx(frame)
@@ -2513,7 +2568,8 @@ class ModbusGuiApp:
                 self.root.after(PERDIODIC_READ_INTERVAL_MS, self.send_r_pvt2_debug_all)
             pass
         finally:
-            print(f"_handle_pvt2_all_read_response error")
+            # print(f"_handle_pvt2_all_read_response error")
+            pass
 
     def _handle_leg_write_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
