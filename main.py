@@ -40,7 +40,7 @@ Read_Addr_Temperature_Over_Setting = "03 03 00 89 00 08"
 Read_Addr_Output_Volt_Under_Setting = "03 03 00 8B 00 08"
 Read_Addr_Current_BlackBox = "03 03 00 A0 00 0C"
 Read_Addr_Merged_BlackBox = "03 03 00 A1 00 20"
-Read_Addr_PVT2_info_all= "03 03 00 B0 00 2F"
+Read_Addr_PVT2_info_all= "03 03 00 B0 00 5A"
 Write_Addr_C28_Error_Mark = "03 06 04 C0 00 02 00 00"
 Write_Addr_C28_Task_Length_ElapsedUsec = "03 06 04 C2 00 04 00 00 00 00"
 Write_Addr_Voltage_Current_Input_RMS = "03 06 04 C2 00 04 00 00 00 00"
@@ -553,8 +553,8 @@ class ModbusGuiApp:
         self.response_pvt2_f32_Main_Loop_Maximum_Elapsed_Usec_r_var = tk.StringVar(value="")
         self.response_pvt2_f32_C28_Isr_Loop_Elapsed_Usec_r_var = tk.StringVar(value="")
         self.response_pvt2_f32_C28_Isr_Loop_Maximum_Elapsed_Usec_r_var = tk.StringVar(value="")
-        self.response_pvt2_f32_CLA_Task_Elapse_Usec_r_var = tk.StringVar(value="")
-        self.response_pvt2_f32_CLA_Task_Maximum_Elapse_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_Time_Task_Maximum_Elapse_Usec_r_var = tk.StringVar(value="")
+        self.response_pvt2_f32_CLA_Maximum_Elapse_Usec_r_var = tk.StringVar(value="")
         self.response_pvt2_f32_Time_Task_Elapsed_Usec_r_var = tk.StringVar(value="")
         self.response_pvt2_f32_Voltage_Input_RMS_r_var = tk.StringVar(value="")
         self.response_pvt2_f32_Current_Input_RMS1_r_var = tk.StringVar(value="")
@@ -582,8 +582,8 @@ class ModbusGuiApp:
             ("Main_Loop_Maximum_Elapsed_Usec", self.response_pvt2_f32_Main_Loop_Maximum_Elapsed_Usec_r_var	),
             ("C28_Isr_Loop_Elapsed_Usec", self.response_pvt2_f32_C28_Isr_Loop_Elapsed_Usec_r_var	),
             ("C28_Isr_Loop_Maximum_Elapsed_Usec", self.response_pvt2_f32_C28_Isr_Loop_Maximum_Elapsed_Usec_r_var	),
-            ("CLA_Task_Elapse_Usec", self.response_pvt2_f32_CLA_Task_Elapse_Usec_r_var	),
-            ("CLA_Task_Maximum_Elapse_Usec", self.response_pvt2_f32_CLA_Task_Maximum_Elapse_Usec_r_var	),
+            ("Time_Task_Maximum_Elapse_Usec", self.response_pvt2_f32_Time_Task_Maximum_Elapse_Usec_r_var	),
+            ("CLA_Maximum_Elapse_Usec", self.response_pvt2_f32_CLA_Maximum_Elapse_Usec_r_var	),
             ("Time_Task_Elapsed_Usec", self.response_pvt2_f32_Time_Task_Elapsed_Usec_r_var	),
             ("Voltage_Input_RMS", self.response_pvt2_f32_Voltage_Input_RMS_r_var	),
             ("Current_Input_RMS1", self.response_pvt2_f32_Current_Input_RMS1_r_var	),
