@@ -47,6 +47,7 @@ Write_Addr_Voltage_Current_Input_RMS = "03 06 04 C2 00 04 00 00 00 00"
 Write_Addr_Voltage_Output = "03 06 04 C4 00 04 00 00 00 00"
 Write_Addr_Voltage_Current_Kp_Ki = "03 06 04 C5 00 18 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
 Write_Addr_Kboost = "03 06 04 C6 00 08 00 00 00 00 00 00 00 00"
+Write_Addr_Save_Config_Section_to_EEPROM = "03 06 04 8B 00 02 00 01"
 
 Read_Addr_VIRTUAL_VAC = "03 03 00 1F 00 04" #test on EVM virtual VAC
 Write_VIRTUAL_VAC = "03 06 04 2F 00 04 00 00 00 00" #test on EVM virtual VAC
@@ -1316,6 +1317,14 @@ class ModbusGuiApp:
             row=0, column=self.column_accumulator_add_get(), sticky="w"
         )
 		# f_lfu.columnconfigure(4, weight=1)
+    # EEPROM related
+        self.column_accumulator_clear()
+        f_eeprom = ttk.LabelFrame(root, text="EEPROM Related", padding=12)
+        f_eeprom.pack(fill="x", pady=(12, 0))        
+        ttk.Button(f_eeprom, text="Save_Config", command=self.send_w_bootloader_command_unlock, width=12).grid(
+            row=0, column=self.column_accumulator_add_get(), sticky="w"
+        )
+        # f_lfu.columnconfigure(4, weight=1)
     # Tab Tool ###############################
         root = tab_tool
         # Translate related 
@@ -1759,6 +1768,22 @@ class ModbusGuiApp:
             args=(frame, "W_pwm_duty sent", self._handle_parse_bootloader_write_response),
             daemon=True,
         ).start()
+    def send_w_bootloader_command_unlock(self) -> None:
+        if not self.serial_port or not self.serial_port.is_open:
+            messagebox.showwarning("Not connected", "Please connect to a COM port first.")
+            return
+
+        request = bytearray.fromhex(Write_Addr_Save_Config_Section_to_EEPROM)
+        self.fill_bytes0_device(request)
+
+        frame = bytes(request) + build_modbus_crc(bytes(request))
+        debug_print_tx(frame)
+        threading.Thread(
+            target=self._send_frame_worker,
+            args=(frame, "w sent", self._handle_parse_current_write_response),
+            daemon=True,
+        ).start()
+
     def send_w_bootloader_command_reboot(self) -> None:
         if not self.serial_port or not self.serial_port.is_open:
             messagebox.showwarning("Not connected", "Please connect to a COM port first.")
