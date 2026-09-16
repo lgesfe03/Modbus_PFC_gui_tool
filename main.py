@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox
 import struct
 from typing import Callable, List, Optional
 from enum import Enum, auto
+from dataclasses import dataclass
 import serial
 from serial.tools import list_ports
 
@@ -85,6 +86,20 @@ AUTO_RESTART_TABLE_DUTAION = [25, 40, 60, 90, 130, 200, 280, 400, 600, 900, 1300
 lut_adc = [521, 726, 1018, 1422, 1938, 2518, 3078, 3527, 3819, 3979, 4053]
 lut_temp = [1500, 1310, 1120, 930, 740, 550, 360, 170, -20, -210, -400]
 LUT_SIZE = len(lut_adc)
+
+@dataclass
+class Adc1ReadResponse:
+    adc1_vac: int
+    adc1_il1: int
+    adc1_il2: int
+    adc1_vbus: int
+    adc1_1v65: int
+@dataclass
+class Adc2ReadResponse:
+    adc2_S_temp: int
+    adc2_LLC_temp: int
+    adc2_Inlet_temp: int
+    adc2_F_temp: int
 
 class _Working_Mode(Enum):
     A2D_SELF_TEST_MODE = 0
@@ -326,23 +341,12 @@ def convert_vbus_voltage(u16_adc):
 def convert_1v65_voltage(u16_adc):
     multiply_offset = u16_adc/4095*3.3
     return str(f"{(multiply_offset):.3f}")
-def parse_adc1_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 6+10:
-        return "N/A", "N/A"
-    u16_adc_vac = data[6]<<8 | data[7]
-    str_vac_voltage = convert_vac_voltage(u16_adc_vac)
-    
-    u16_adc_il1 = data[8]<<8 | data[9]
-    str_il1_amp = convert_il_amp(u16_adc_il1)
-    u16_adc_il2 = data[10]<<8 | data[11]
-    str_il2_amp = convert_il_amp(u16_adc_il2)
-
-    u16_adc_vbus = data[12]<<8 | data[13]
-    str_vbus_voltage = convert_vbus_voltage(u16_adc_vbus)
-
-    u16_adc_1v65 = data[14]<<8 | data[15]
-    str_1v65_voltage = convert_1v65_voltage(u16_adc_1v65)
-    return str_1v65_voltage, str_vbus_voltage, str_il2_amp, str_il1_amp, str_vac_voltage
+def merge_u16_bytes_adc1(data: bytes) -> Adc1ReadResponse:
+    if len(data) < 16:
+        raise ValueError(f"Invalid ADC1 response length: {len(data)}")
+    payload = data[6:16]  # get 10 bytes， 5 * u16
+    values = struct.unpack(">5H", payload)
+    return Adc1ReadResponse(*values)
 def linear_interpolate(x: int, x0: int, x1: int, y0: float, y1: float) -> float:
     """Performs linear interpolation between (x0, y0) and (x1, y1) for x."""
     if x1 == x0:
@@ -369,22 +373,12 @@ def convert_ntc_01_degreeC(u16_adc):
     temp_01c = get_temperature(u16_adc)    # temperature in 0.1 °C units
     temp_c = temp_01c / 10.0           # convert to °C
     return str(f"{(temp_c):.1f}")
-def parse_adc2_read_response(data: bytes) -> tuple[str, str]:
-    if len(data) < 6+8:
-        return "N/A", "N/A"
-    u16_adc_PFC_S_TEMP = data[6]<<8 | data[7]
-    str_PFC_S_TEMP = convert_ntc_01_degreeC(u16_adc_PFC_S_TEMP)
-    
-    u16_adc_Inlet_TEMP = data[8]<<8 | data[9]
-    str_Inlet_TEMP = convert_ntc_01_degreeC(u16_adc_Inlet_TEMP)
-
-    u16_adc_LLC_TEMP = data[10]<<8 | data[11]
-    str_LLC_TEMP = convert_ntc_01_degreeC(u16_adc_LLC_TEMP)
-
-    u16_adc_PFC_F_TEMP = data[12]<<8 | data[13]
-    str_PFC_F_TEMP = convert_ntc_01_degreeC(u16_adc_PFC_F_TEMP)
-    return str_PFC_F_TEMP, str_LLC_TEMP, str_Inlet_TEMP, str_PFC_S_TEMP
-
+def merge_u16_bytes_adc2(data: bytes) -> Adc2ReadResponse:
+    if len(data) < 14:
+        raise ValueError(f"Invalid ADC2 response length: {len(data)}")
+    payload = data[6:14]
+    values = struct.unpack(">4H", payload)
+    return Adc2ReadResponse(*values)
 def parse_gpio_read_response(data: bytes) -> tuple[str, str]:
     if len(data) < 6+1:
         return "N/A", "N/A"
@@ -486,7 +480,7 @@ class ModbusGuiApp:
         self.response_pwm_FBL_duty_r_var = tk.StringVar(value="")
         self.input_pwm_duty_w_var = tk.StringVar(value="0")
 
-        self.response_adc1_v165_r_var = tk.StringVar(value="")
+        self.response_adc1_1v65_r_var = tk.StringVar(value="")
         self.response_adc1_vbus_r_var = tk.StringVar(value="")
         self.response_adc1_il1_r_var = tk.StringVar(value="")
         self.response_adc1_il2_r_var = tk.StringVar(value="")
@@ -665,7 +659,7 @@ class ModbusGuiApp:
         self.response_pwm_FBH_duty_r_var.set("")
         self.response_pwm_FBL_duty_r_var.set("")
         # self.input_pwm_duty_w_var.set("0")
-        self.response_adc1_v165_r_var.set("")
+        self.response_adc1_1v65_r_var.set("")
         self.response_adc1_vbus_r_var.set("")
         self.response_adc1_il1_r_var.set("")
         self.response_adc1_il2_r_var.set("")
@@ -891,27 +885,27 @@ class ModbusGuiApp:
         #ADC1
         ttk.Label(f_adc_r, text="Vac").grid(
             row=0, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vac_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vac_r_var, width=16, state="readonly").grid(
             row=0, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="iL1").grid(
             row=0, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il1_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il1_r_var, width=16, state="readonly").grid(
             row=0, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="iL2").grid(
             row=0, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il2_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_il2_r_var, width=16, state="readonly").grid(
             row=0, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="Vbus").grid(
             row=0, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vbus_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_vbus_r_var, width=16, state="readonly").grid(
             row=0, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="1.65V").grid(
             row=0, column=9, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc1_v165_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc1_1v65_r_var, width=16, state="readonly").grid(
             row=0, column=10, padx=(12, 8), pady=(8, 0), sticky="w"
         )
         #ADC2
@@ -921,22 +915,22 @@ class ModbusGuiApp:
 
         ttk.Label(f_adc_r, text="PFC_S_TEMP").grid(
             row=1, column=1, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc2_PFC_S_TEMP_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc2_PFC_S_TEMP_r_var, width=16, state="readonly").grid(
             row=1, column=2, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="LLC_TEMP").grid(
             row=1, column=3, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc2_LLC_TEMP_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc2_LLC_TEMP_r_var, width=16, state="readonly").grid(
             row=1, column=4, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="Inlet_TEMP").grid(
             row=1, column=5, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc2_Inlet_TEMP_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc2_Inlet_TEMP_r_var, width=16, state="readonly").grid(
             row=1, column=6, padx=(8, 0), pady=(8, 0), sticky="w"
         )
         ttk.Label(f_adc_r, text="PFC_F_TEMP").grid(
             row=1, column=7, sticky="w", pady=(8, 0))
-        ttk.Entry(f_adc_r, textvariable=self.response_adc2_PFC_F_TEMP_r_var, width=12, state="readonly").grid(
+        ttk.Entry(f_adc_r, textvariable=self.response_adc2_PFC_F_TEMP_r_var, width=16, state="readonly").grid(
             row=1, column=8, padx=(8, 0), pady=(8, 0), sticky="w"
         )
 
@@ -2545,20 +2539,20 @@ class ModbusGuiApp:
     def _handle_adc1_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        adc1_v165, adc1_vbus, adc1_il2, adc1_il1, adc1_vac = parse_adc1_read_response(response)
-        self.root.after(0, lambda: self.response_adc1_v165_r_var.set(adc1_v165))
-        self.root.after(0, lambda: self.response_adc1_vbus_r_var.set(adc1_vbus))
-        self.root.after(0, lambda: self.response_adc1_il1_r_var.set(adc1_il1))
-        self.root.after(0, lambda: self.response_adc1_il2_r_var.set(adc1_il2))
-        self.root.after(0, lambda: self.response_adc1_vac_r_var.set(adc1_vac))
+        adc1_u16_struct = merge_u16_bytes_adc1(response)
+        self.root.after(0, lambda: self.response_adc1_1v65_r_var.set(f"{convert_1v65_voltage(adc1_u16_struct.adc1_1v65)}V ({adc1_u16_struct.adc1_1v65})"))
+        self.root.after(0, lambda: self.response_adc1_vbus_r_var.set(f"{convert_vbus_voltage(adc1_u16_struct.adc1_vbus)}V ({adc1_u16_struct.adc1_vbus})"))
+        self.root.after(0, lambda: self.response_adc1_il1_r_var.set(f"{convert_il_amp(adc1_u16_struct.adc1_il1)}A ({adc1_u16_struct.adc1_il1})"))
+        self.root.after(0, lambda: self.response_adc1_il2_r_var.set(f"{convert_il_amp(adc1_u16_struct.adc1_il2)}A ({adc1_u16_struct.adc1_il2})"))
+        self.root.after(0, lambda: self.response_adc1_vac_r_var.set(f"{convert_vac_voltage(adc1_u16_struct.adc1_vac)}V ({adc1_u16_struct.adc1_vac})"))
     def _handle_adc2_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
         debug_print_rx(response)
-        PFC_F_TEMP, LLC_TEMP, Inlet_TEMP, PFC_S_TEMP = parse_adc2_read_response(response)
-        self.root.after(0, lambda: self.response_adc2_PFC_S_TEMP_r_var.set(PFC_F_TEMP))
-        self.root.after(0, lambda: self.response_adc2_LLC_TEMP_r_var.set(LLC_TEMP))
-        self.root.after(0, lambda: self.response_adc2_Inlet_TEMP_r_var.set(Inlet_TEMP))
-        self.root.after(0, lambda: self.response_adc2_PFC_F_TEMP_r_var.set(PFC_S_TEMP))
+        adc2_u16_struct = merge_u16_bytes_adc2(response)
+        self.root.after(0, lambda: self.response_adc2_PFC_S_TEMP_r_var.set(f"{convert_ntc_01_degreeC(adc2_u16_struct.adc2_S_temp)}°C ({adc2_u16_struct.adc2_S_temp})"))
+        self.root.after(0, lambda: self.response_adc2_LLC_TEMP_r_var.set(f"{convert_ntc_01_degreeC(adc2_u16_struct.adc2_LLC_temp)}°C ({adc2_u16_struct.adc2_LLC_temp})"))
+        self.root.after(0, lambda: self.response_adc2_Inlet_TEMP_r_var.set(f"{convert_ntc_01_degreeC(adc2_u16_struct.adc2_Inlet_temp)}°C ({adc2_u16_struct.adc2_Inlet_temp})"))
+        self.root.after(0, lambda: self.response_adc2_PFC_F_TEMP_r_var.set(f"{convert_ntc_01_degreeC(adc2_u16_struct.adc2_F_temp)}°C ({adc2_u16_struct.adc2_F_temp})"))
 
     def _handle_gpio_read_response(self, response: bytes) -> None:
         response_text = format_hex(response) if response else "(no response)"
