@@ -61,7 +61,8 @@ Mock_response_f32_u16 = bytes.fromhex("03 03 00 B0 00 06 3D CC CC CD 01 02")
 DATA_LENGTH_INDEX1 = 4
 DATA_LENGTH_INDEX2 = 5
 FLOAT_ROUND = 2
-PERDIODIC_READ_INTERVAL_MS = 100
+NORMAL_PERDIODIC_READ_INTERVAL_MS = 100
+ERROR_PERDIODIC_READ_INTERVAL_MS = 1000
 VBUS_MAX_VOLTAGE = 529.2375
 CURRENT_MAX_AMP = 45.0
 # Input limit
@@ -2592,15 +2593,20 @@ class ModbusGuiApp:
         self.root.after(0, lambda: self.response_leg_HFLegB_EN_r_var.set(HFLegB_EN))
         self.root.after(0, lambda: self.response_leg_OPL_LFLeg_EN_r_var.set(OPL_LFLeg_EN))
         self.root.after(0, lambda: self.response_leg_OPL_HFLeg_SR_EN_r_var.set(OPL_HFLeg_SR_EN))
+    def _resend_pvt2_all_read_command(self, interval) -> None:
+        if self.input_pvt2_read_periodically_var.get() == 1:
+            self.root.after(interval, self.send_r_pvt2_debug_all)
     def _handle_pvt2_all_read_response(self, response: bytes) -> None:
         try:
             response_text = format_hex(response) if response else "(no response)"
             debug_print_rx(response)
             if self.get_data_length(response) < 6:
                 print(f"response length is too short, len={len(response)}")
+                self._resend_pvt2_all_read_command(ERROR_PERDIODIC_READ_INTERVAL_MS)
                 return
             elif self.get_data_length(response) > 100:
                 print(f"response length is too long, len={len(response)}")
+                self._resend_pvt2_all_read_command(ERROR_PERDIODIC_READ_INTERVAL_MS)
                 return
             idx = 6
             # print(f"len(self._PVT2_FIELD_R)={len(self._PVT2_FIELD_R)}")
@@ -2627,8 +2633,7 @@ class ModbusGuiApp:
                         var.set(parse_f32_index_read_response(response, idx))
                     # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
                     idx += 4
-            if self.input_pvt2_read_periodically_var.get() == 1:
-                self.root.after(PERDIODIC_READ_INTERVAL_MS, self.send_r_pvt2_debug_all)
+            self._resend_pvt2_all_read_command(NORMAL_PERDIODIC_READ_INTERVAL_MS)
             pass
         finally:
             # print(f"_handle_pvt2_all_read_response error")
