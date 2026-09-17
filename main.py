@@ -63,6 +63,7 @@ DATA_LENGTH_INDEX2 = 5
 FLOAT_ROUND = 2
 PERDIODIC_READ_INTERVAL_MS = 100
 VBUS_MAX_VOLTAGE = 529.2375
+CURRENT_MAX_AMP = 45.0
 # Input limit
 INPUT_CURRENT_MIN = 0
 INPUT_CURRENT_MAX = 130
@@ -1438,7 +1439,7 @@ class ModbusGuiApp:
             ttk.Label(f_tab_pvt2_r, text=label_text).grid(
                 row=self.row_accumulator_get(), column=self.column_accumulator_add_get(), sticky="w", pady=(8, 0)
             )
-            ttk.Entry(f_tab_pvt2_r, textvariable=var, width=18, state="readonly").grid(
+            ttk.Entry(f_tab_pvt2_r, textvariable=var, width=24, state="readonly").grid(
                 row=self.row_accumulator_get(), column=self.column_accumulator_add_get(),
                 padx=(12, 8), pady=(8, 0), sticky="w"
             )
@@ -2595,15 +2596,35 @@ class ModbusGuiApp:
         try:
             response_text = format_hex(response) if response else "(no response)"
             debug_print_rx(response)
+            if self.get_data_length(response) < 6:
+                print(f"response length is too short, len={len(response)}")
+                return
+            elif self.get_data_length(response) > 100:
+                print(f"response length is too long, len={len(response)}")
+                return
             idx = 6
             # print(f"len(self._PVT2_FIELD_R)={len(self._PVT2_FIELD_R)}")
             for i, (label_text, var) in  reversed(list(enumerate(self._PVT2_FIELD_R))):
                 if i < 7:
-                    var.set(parse_u16_index_read_response(response, idx))
+                    if (label_text == "Main_Error_Status"):
+                        u16_value = parse_u16_index_read_response(response, idx)
+                        parse_Fault_Code = decode_faults(u16_value)
+                        var.set(f"{u16_value} ({parse_Fault_Code})")
+                    else:
+                        var.set(parse_u16_index_read_response(response, idx))
                     # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
                     idx += 2
                 else:
-                    var.set(parse_f32_index_read_response(response, idx))
+                    if (label_text == "Voltage_Input_RMS" or label_text == "Voltage_Output"):
+                        f32_pu_value = parse_f32_index_read_response(response, idx)
+                        real_value = float(f32_pu_value) * VBUS_MAX_VOLTAGE
+                        var.set(f"{f32_pu_value} ({real_value:.0f}V)")
+                    elif (label_text == "Current_Input_RMS1" or label_text == "Current_Input_RMS2"):
+                        f32_pu_value = parse_f32_index_read_response(response, idx)
+                        real_value = float(f32_pu_value) * CURRENT_MAX_AMP
+                        var.set(f"{f32_pu_value} ({real_value:.2f}A)")
+                    else:
+                        var.set(parse_f32_index_read_response(response, idx))
                     # print(f"i={i}, idx={idx}, label_text={label_text}, var={var}")
                     idx += 4
             if self.input_pvt2_read_periodically_var.get() == 1:
